@@ -187,7 +187,73 @@ if ($header!='nix') {
 		});
 	});
 	</script>
+
 	<?php
+if($title=="Menu"){
+	echo <<<HOTKEY
+	<script type="text/javascript">
+	var buffer = '';
+	setInterval("var buffer = '';", 3000); // parameter nr. 2 angiver millisekunder mellem reset af tastebuffer.
+	$(document).keyup(function(e){
+		if(buffer.length > 2) buffer = '' + e.which; else buffer = '' + buffer + e.which;
+
+		if(buffer.length == 4){
+			switch(buffer){
+				case '7049': // Finans -> Kassekladder
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../finans/kladdeliste.php?returside=../index/menu.php';
+					break;
+				case '7050': // Finans -> Regnskab
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../finans/regnskab.php?returside=../index/menu.php';
+					break;
+				case '7051': // Finans -> Rapporter
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../finans/rapport.php?returside=../index/menu.php';
+					break;
+
+				case '6849': // Debitor -> Ordre
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../debitor/ordreliste.php?returside=../index/menu.php';
+					break;
+				case '6850': // Debitor -> Konti
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../debitor/debitor.php?returside=../index/menu.php';
+					break;
+				case '6851': // Debitor -> Rapporter
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../debitor/rapport.php?returside=../index/menu.php';
+					break;
+
+				case '7549': // Kreditor -> Ordre
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../kreditor/ordreliste.php?returside=../index/menu.php';
+					break;
+				case '7550': // Kreditor -> Konti
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../kreditor/kreditor.php?returside=../index/menu.php';
+					break;
+				case '7551': // Kreditor -> Rapporter
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../kreditor/rapport.php?returside=../index/menu.php';
+					break;
+
+				case '7649': // Lager -> Varer
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../lager/varer.php?returside=../index/menu.php';
+					break;
+				case '7650': // Lager -> Varemodtagelse
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../lager/modtageliste.php?returside=../index/menu.php';
+					break;
+				case '7651': // Lager -> Rapporter
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../lager/rapport.php?returside=../index/menu.php';
+					break;
+
+				case '8349': // Systemdata -> Kontoplan
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../systemdata/kontoplan.php?returside=../index/menu.php';
+					break;
+				case '8350': // Systemdata -> Indstillinger
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../systemdata/syssetup.php?returside=../index/menu.php';
+					break;
+				case '8351': // Systemdata -> Sikkerhedskopi
+					if(valid_menu_items.indexOf(buffer) != -1) window.location='../admin/backup.php?returside=../index/menu.php';
+					break;
+			}
+		}
+	})
+	</script>
+HOTKEY;
+};
 	# <-- 20140502
 	PRINT "</head>\n";
 }

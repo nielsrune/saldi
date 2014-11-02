@@ -25,6 +25,7 @@
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
 $title="Menu";
+$valid_menu_items = array();
 $css="../css/standard.css";
 
 
@@ -117,6 +118,7 @@ if ($vis_finans) {
 	if (substr($rettigheder,2,1)=='1') {
     if ($popup) print "<td $stor_knap_bg onClick=\"javascript:kladdeliste=window.open('../finans/kladdeliste.php?returside=../includes/luk.php','kladdeliste','".$jsvars."');kladdeliste.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(105,$sprog_id)."</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../finans/kladdeliste.php?returside=../index/menu.php\">".findtekst(105,$sprog_id)."</a></td>\n";
+	$valid_menu_items[] = '7049';
 	} else {
     print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(105,$sprog_id)."</td>\n";
 	}
@@ -126,6 +128,7 @@ if ($vis_debitor) {
 	if (substr($rettigheder,5,1)=='1') {
     if ($popup) print "<td $stor_knap_bg onClick=\"javascript:d_ordrer=window.open('../debitor/ordreliste.php?returside=../includes/luk.php','d_ordrer','".$jsvars."');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(107,$sprog_id)."</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../debitor/ordreliste.php?returside=../index/menu.php\">".findtekst(107,$sprog_id)."</a></td>\n";
+	$valid_menu_items[] = '6849';
 	} else {
     print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(107,$sprog_id)."</td>\n";
 	}
@@ -135,6 +138,7 @@ if ($vis_kreditor) {
 	if (substr($rettigheder,7,1)) {
 		if ($popup) print "<td $stor_knap_bg onClick=\"javascript:k_ordrer=window.open('../kreditor/ordreliste.php?returside=../includes/luk.php','k_ordrer','".$jsvars."');k_ordrer.focus();\"	onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(107,$sprog_id)."</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../kreditor/ordreliste.php?returside=../index/menu.php\">".findtekst(107,$sprog_id)."</a></td>\n";
+	$valid_menu_items[] = '7549';
 	} else {
 		print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(107,$sprog_id)."</td>\n";
 	}
@@ -153,6 +157,7 @@ $tekst=findtekst(109,$sprog_id);
 if (substr($rettigheder,9,1)=='1') {
     if ($popup) print "<td $stor_knap_bg onClick=\"javascript:lager=window.open('../lager/varer.php?returside=../includes/luk.php','lager','".$jsvars."');lager.focus();\"	onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(110,$sprog_id)."</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../lager/varer.php?returside=../index/menu.php\">".findtekst(110,$sprog_id)."</a></td>\n";
+	$valid_menu_items[] = '7649';
 } else {
     $row = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__));
     if ($row[ansat_id]) {
@@ -177,6 +182,7 @@ $tekst=findtekst(112,$sprog_id);
 if (substr($rettigheder,0,1)=='1') {
    if ($popup) print "<td $stor_knap_bg onClick=\"javascript:kontoplan=window.open('../systemdata/kontoplan.php?returside=../includes/luk.php','kontoplan','".$jsvars."');kontoplan.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(113,$sprog_id)."</td>\n";
    else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../systemdata/kontoplan.php?returside=../index/menu.php\">".findtekst(113,$sprog_id)."</a></td>\n";
+	$valid_menu_items[] = '8349';
 } else {
    print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(113,$sprog_id)."</td>\n";
 }
@@ -188,6 +194,7 @@ if ($vis_finans) {
 	if (substr($rettigheder,3,1)=='1') {
     if ($popup) print "<td $stor_knap_bg onClick=\"javascript:regnskab=window.open('../finans/regnskab.php?returside=../includes/luk.php','regnskab','".$jsvars."');regnskab.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(115,$sprog_id)."</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../finans/regnskab.php?returside=../index/menu.php\">".findtekst(115,$sprog_id)."</a></td>\n";
+        $valid_menu_items[] = '7050';
 	} else {
     print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(115,$sprog_id)."</td>\n";
 	}
@@ -197,6 +204,7 @@ if ($vis_debitor) {
 	if (substr($rettigheder,6,1)=='1') {
     if ($popup) print "<td $stor_knap_bg onClick=\"javascript:d_konti=window.open('../debitor/debitor.php?returside=../includes/luk.php','d_konti','".$jsvars."');d_konti.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(117,$sprog_id)."</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../debitor/debitor.php?returside=../index/menu.php\">".findtekst(117,$sprog_id)."</a></td>\n";
+        $valid_menu_items[] = '6850';
 	} else {
     print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(117,$sprog_id)."</td>\n";
 	}
@@ -206,6 +214,7 @@ if ($vis_kreditor) {
 	if (substr($rettigheder,8,1)=='1') {
     if ($popup) print "<td $stor_knap_bg onClick=\"javascript:k_konti=window.open('../kreditor/kreditor.php?returside=../includes/luk.php','k_konti','".$jsvars."');k_konti.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(117,$sprog_id)."</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../kreditor/kreditor.php?returside=../index/menu.php\">".findtekst(117,$sprog_id)."</a></td>\n";
+        $valid_menu_items[] = '7550';
 	} else {
     print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(117,$sprog_id)."</td>\n";
 	}
@@ -232,6 +241,7 @@ if ($vis_lager) {
 	if (substr($rettigheder,10,1)=='1') {
 		if ($popup) print "<td $stor_knap_bg onClick=\"javascript:modtageliste=window.open('../lager/modtageliste.php?returside=../includes/luk.php','modtageliste','".$jsvars."');modtageliste.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(182,$sprog_id)."</td>\n";
 		else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../lager/modtageliste.php?returside=../index/menu.php\">".findtekst(182,$sprog_id)."</a></td>\n";
+        $valid_menu_items[] = '7650';
 	} else {
 		print "<td $stor_knap_bg><span style=\"color:#999;\">".findtekst(182,$sprog_id)."</td>\n";
 	}
@@ -240,6 +250,7 @@ $tekst=findtekst(121,$sprog_id);
 if (substr($rettigheder,1,1)=='1') {
    if ($popup) print "<td  $stor_knap_bg onClick=\"javascript:syssetup=window.open('../systemdata/syssetup.php?returside=../includes/luk.php','syssetup','".$jsvars."');syssetup.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(122,$sprog_id)."</td>\n";
    else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../systemdata/syssetup.php?returside=../index/menu.php\">".findtekst(122,$sprog_id)."</a></td>\n";
+        $valid_menu_items[] = '8350';
 } else {
    if ($popup) print "<td $stor_knap_bg onClick=\"javascript:brugerdata=window.open('../systemdata/brugerdata.php?returside=../includes/luk.php','brugerdata','".$jsvars."');brugerdata.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(122,$sprog_id)."</td>\n";
    else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../systemdata/brugerdata.php?returside=../index/menu.php\">".findtekst(122,$sprog_id)."</a></td>\n";
@@ -252,6 +263,7 @@ if ($vis_finans) {
 	if (substr($rettigheder,4,1)=='1') {
     if ($popup) print "<td $stor_knap_bg onClick=\"javascript:f_rapport=window.open('../finans/rapport.php?returside=../includes/luk.php','f_rapport','".$jsvars."');f_rapport.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(124,$sprog_id)."</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../finans/rapport.php?returside=../index/menu.php\">".findtekst(124,$sprog_id)."</a></td>\n";
+        $valid_menu_items[] = '7051';	
 	} elseif ($provision) {
     if ($popup) print "<td $stor_knap_bg onClick=\"javascript:provisionsrapport=window.open('../finans/provisionsrapport.php?returside=../includes/luk.php','provisionsrapport','".$jsvars."');provisionsrapport.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">  Provision</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../finans/provisionsrapport.php?returside=../index/menu.php\">".findtekst(124,$sprog_id)."</a></td>\n";
@@ -265,6 +277,7 @@ if ($vis_debitor) {
 	if (substr($rettigheder,12,1)=='1') {
     if ($popup) print "<td $stor_knap_bg onClick=\"javascript:d_rapport=window.open('../debitor/rapport.php?returside=../includes/luk.php','d_rapport','".$jsvars."');d_rapport.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(124,$sprog_id)."</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../debitor/rapport.php?returside=../index/menu.php\">".findtekst(124,$sprog_id)."</a></td>\n";
+        $valid_menu_items[] = '6851';	
 	} else {
     print "<td $stor_knap_bg><span style=\"color:#999;\"><a onfocus=\"this.style.color='#888888'\" onblur=\"this.style.color='#888888'\">".findtekst(124,$sprog_id)."</td>\n";
 	}
@@ -275,6 +288,7 @@ if ($vis_kreditor) {
 	if (substr($rettigheder,13,1)=='1') {
     if ($popup) print "<td $stor_knap_bg onClick=\"javascript:k_rapport=window.open('../kreditor/rapport.php?returside=../includes/luk.php','k_rapport','".$jsvars."');k_rapport.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(124,$sprog_id)."</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../kreditor/rapport.php?returside=../index/menu.php\">".findtekst(124,$sprog_id)."</a></td>\n";
+        $valid_menu_items[] = '7551';	
 	} else {
     print "<td $stor_knap_bg><span style=\"color:#999;\"><a onfocus=\"this.style.color='#888888'\" onblur=\"this.style.color='#888888'\">".findtekst(124,$sprog_id)."</td>\n";
 	}
@@ -288,6 +302,7 @@ if ($vis_lager) {
 	if (substr($rettigheder,15,1)=='1') {
     if ($popup) print "<td $stor_knap_bg onClick=\"javascript:k_rapport=window.open('../lager/rapport.php?returside=../includes/luk.php','k_rapport','".$jsvars."');k_rapport.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">".findtekst(124,$sprog_id)."</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../lager/rapport.php?returside=../index/menu.php\">".findtekst(124,$sprog_id)."</a></td>\n";
+        $valid_menu_items[] = '7651';	
 	} else {
     print "<td $stor_knap_bg><span style=\"color:#999;\"><a onfocus=\"this.style.color='#888888'\" onblur=\"this.style.color='#888888'\">".findtekst(124,$sprog_id)."</td>\n";
 	}
@@ -296,6 +311,7 @@ $tekst=findtekst(128,$sprog_id);
 if (substr($rettigheder,11,1)=='1') {
     if ($popup) print "<td  $stor_knap_bg onClick=\"javascript:backup=window.open('../admin/backup.php?returside=../includes/luk.php','backup','".$jsvars."');backup.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">Sikkerhedskopi</td>\n";
     else print "<td $stor_knap_bg title=\"$tekst\"><a href=\"../admin/backup.php?returside=../index/menu.php\">Sikkerhedskopi</a></td>\n";
+        $valid_menu_items[] = '8351';	
 } else {
     print "<td $stor_knap_bg><span style=\"color:#999;\">Backup</td>\n";
 }
@@ -308,6 +324,8 @@ print	"</td></tr>\n";
 print	"<tr><td align=\"center\" valign=\"bottom\">\n";
 print "<div class=top_bund><small>SALDI&nbsp;version&nbsp;$version&nbsp;-&nbsp;Copyright&nbsp;&copy;&nbsp;$copyright&nbsp;DANOSOFT&nbsp;aps</small></div></td></tr>\n";
 print	"</tbody></table>\n";
+$valid_menu_items = '\'' . implode('\',\'', $valid_menu_items) . '\'';
+echo "<script type=\"text/javascript\">var valid_menu_items = new Array($valid_menu_items);</script>";
 print	"</center></body></html>\n";
 $query = db_select("select * from grupper where art = 'RA'",__FILE__ . " linje " . __LINE__);
 if (!$row = db_fetch_array($query)) {
