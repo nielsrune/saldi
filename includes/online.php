@@ -199,7 +199,7 @@ if($title=="Menu"){
 
 		if(buffer.length == 4){
 			switch(buffer){
-				case '7049': // Finans -> Kassekladder
+				case '7049': // Finans -> Kassekladde
 					if(valid_menu_items.indexOf(buffer) != -1) window.location='../finans/kladdeliste.php?returside=../index/menu.php';
 					break;
 				case '7050': // Finans -> Regnskab
