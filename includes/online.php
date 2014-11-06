@@ -187,43 +187,7 @@ if ($header!='nix') {
 		});
 	});
 	</script>
-
 	<?php
-if($title=="Menu"){
-	echo <<<HOTKEY
-	<script type="text/javascript">
-	var buffer = '';
-	var timer = null;
-	var timeout = 1000;
-
-	var gruppe = [70, 68, 75, 76, 83];
-	var raekke = [49, 50, 51];
-
-	function clearBuffer(){
-		buffer = '';
-//		$("#debug").text('cleared');
-	}
-
-	$(document).keyup(function(e){
-
-		if(buffer.length != 2 && gruppe.indexOf(e.which) != -1){ 		// TRUE hvis buffer er tom og gyldig tast
-			buffer = '' + e.which;						// Gem tast i buffer
-//			$("#debug").text(buffer);
-			clearTimeout(timer);
-			timer = setTimeout(clearBuffer, timeout);			// Gem buffer i nn millisekunder
-		} else if(buffer.length == 2 && raekke.indexOf(e.which) != -1) {	// TRUE hvis forrige tast er gemt i buffer
-			buffer = '' + buffer + e.which;					// Dan kombination
-//			$("#debug").text(buffer);
-			clearTimeout(timer);
-		}
-
-		if(buffer.length == 4 && valid_menu_items.hasOwnProperty(buffer)){	// TRUE hvis kombination er tilgængelig
-			window.location = valid_menu_items[buffer];			// viderestil til valgt side
-			}
-	})
-	</script>
-HOTKEY;
-};
 	# <-- 20140502
 	PRINT "</head>\n";
 }
