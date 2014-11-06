@@ -193,63 +193,33 @@ if($title=="Menu"){
 	echo <<<HOTKEY
 	<script type="text/javascript">
 	var buffer = '';
-	setInterval("var buffer = '';", 3000); // parameter nr. 2 angiver millisekunder mellem reset af tastebuffer.
+	var timer = null;
+	var timeout = 1000;
+
+	var gruppe = [70, 68, 75, 76, 83];
+	var raekke = [49, 50, 51];
+
+	function clearBuffer(){
+		buffer = '';
+//		$("#debug").text('cleared');
+	}
+
 	$(document).keyup(function(e){
-		if(buffer.length > 2) buffer = '' + e.which; else buffer = '' + buffer + e.which;
 
-		if(buffer.length == 4){
-			switch(buffer){
-				case '7049': // Finans -> Kassekladde
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../finans/kladdeliste.php?returside=../index/menu.php';
-					break;
-				case '7050': // Finans -> Regnskab
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../finans/regnskab.php?returside=../index/menu.php';
-					break;
-				case '7051': // Finans -> Rapporter
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../finans/rapport.php?returside=../index/menu.php';
-					break;
-
-				case '6849': // Debitor -> Ordre
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../debitor/ordreliste.php?returside=../index/menu.php';
-					break;
-				case '6850': // Debitor -> Konti
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../debitor/debitor.php?returside=../index/menu.php';
-					break;
-				case '6851': // Debitor -> Rapporter
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../debitor/rapport.php?returside=../index/menu.php';
-					break;
-
-				case '7549': // Kreditor -> Ordre
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../kreditor/ordreliste.php?returside=../index/menu.php';
-					break;
-				case '7550': // Kreditor -> Konti
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../kreditor/kreditor.php?returside=../index/menu.php';
-					break;
-				case '7551': // Kreditor -> Rapporter
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../kreditor/rapport.php?returside=../index/menu.php';
-					break;
-
-				case '7649': // Lager -> Varer
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../lager/varer.php?returside=../index/menu.php';
-					break;
-				case '7650': // Lager -> Varemodtagelse
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../lager/modtageliste.php?returside=../index/menu.php';
-					break;
-				case '7651': // Lager -> Rapporter
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../lager/rapport.php?returside=../index/menu.php';
-					break;
-
-				case '8349': // Systemdata -> Kontoplan
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../systemdata/kontoplan.php?returside=../index/menu.php';
-					break;
-				case '8350': // Systemdata -> Indstillinger
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../systemdata/syssetup.php?returside=../index/menu.php';
-					break;
-				case '8351': // Systemdata -> Sikkerhedskopi
-					if(valid_menu_items.indexOf(buffer) != -1) window.location='../admin/backup.php?returside=../index/menu.php';
-					break;
-			}
+		if(buffer.length != 2 && gruppe.indexOf(e.which) != -1){ 		// TRUE hvis buffer er tom og gyldig tast
+			buffer = '' + e.which;						// Gem tast i buffer
+//			$("#debug").text(buffer);
+			clearTimeout(timer);
+			timer = setTimeout(clearBuffer, timeout);			// Gem buffer i nn millisekunder
+		} else if(buffer.length == 2 && raekke.indexOf(e.which) != -1) {	// TRUE hvis forrige tast er gemt i buffer
+			buffer = '' + buffer + e.which;					// Dan kombination
+//			$("#debug").text(buffer);
+			clearTimeout(timer);
 		}
+
+		if(buffer.length == 4 && valid_menu_items.hasOwnProperty(buffer)){	// TRUE hvis kombination er tilgængelig
+			window.location = valid_menu_items[buffer];			// viderestil til valgt side
+			}
 	})
 	</script>
 HOTKEY;
