@@ -86,17 +86,17 @@ if (db_fetch_array(db_select("select id from grupper where art = 'POS' and box2 
 print "<tr style=\"height:35px;\">\n";
 if ($provision || substr($rettigheder,2,1) || substr($rettigheder,3,1) || substr($rettigheder,4,1)) {
 $tekst=findtekst(91,$sprog_id);
-print "<td style=\"height:35px;width:150px;background:url(../img/blaa2hvid_bg.gif);\" align=\"center\" title=\"$tekst\" id=\"f\">".findtekst(95,$sprog_id)."</td>\n";
+print "<td style=\"height:35px;width:150px;background:url(../img/blaa2hvid_bg.gif);\" align=\"center\" title=\"$tekst\" id=\"key_70\">".findtekst(95,$sprog_id)."</td>\n";
 $vis_finans=1;
 } else $vis_finans=0;
 if (substr($rettigheder,5,1) || substr($rettigheder,6,1) || substr($rettigheder,12,1)) {
 	$tekst=findtekst(96,$sprog_id);
-	print "<td style=\"width:150px;background:url(../img/blaa2hvid_bg.gif);\" align=\"center\" title=\"$tekst\" id=\"d\">".findtekst(99,$sprog_id)."</td>\n";
+	print "<td style=\"width:150px;background:url(../img/blaa2hvid_bg.gif);\" align=\"center\" title=\"$tekst\" id=\"key_68\">".findtekst(99,$sprog_id)."</td>\n";
 	$vis_debitor=1;
 } else $vis_debitor=0;
 if (substr($rettigheder,7,1) || substr($rettigheder,8,1) || substr($rettigheder,13,1)) {
 	$tekst=findtekst(97,$sprog_id);
-	print "<td style=\"width:150px;background:url(../img/blaa2hvid_bg.gif);\" align=\"center\" title=\"$tekst\" id=\"k\">".findtekst(100,$sprog_id)."</td>\n";
+	print "<td style=\"width:150px;background:url(../img/blaa2hvid_bg.gif);\" align=\"center\" title=\"$tekst\" id=\"key_75\">".findtekst(100,$sprog_id)."</td>\n";
 	$vis_kreditor=1;
 } else $vis_kreditor=0;
 if ($produktion) { # Udeladt indtil test gennemfoert.
@@ -104,12 +104,12 @@ if ($produktion) { # Udeladt indtil test gennemfoert.
 }
 if (substr($rettigheder,9,1) || substr($rettigheder,10,1) || substr($rettigheder,15,1)) {
 	$tekst=findtekst(101,$sprog_id);
-	print "<td style=\"width:150px;background:url(../img/blaa2hvid_bg.gif);\" align=\"center\" title=\"$tekst\" id=\"l\">".findtekst(102,$sprog_id)."</td>\n";
+	print "<td style=\"width:150px;background:url(../img/blaa2hvid_bg.gif);\" align=\"center\" title=\"$tekst\" id=\"key_76\">".findtekst(102,$sprog_id)."</td>\n";
 	$vis_lager=1;
 } else $vis_lager=0;
 
 $tekst=findtekst(103,$sprog_id);
-print "<td style=\"width:150px;background:url(../img/blaa2hvid_bg.gif);\" align=\"center\" title=\"$tekst\" id=\"s\">".findtekst(104,$sprog_id)."</td>\n";
+print "<td style=\"width:150px;background:url(../img/blaa2hvid_bg.gif);\" align=\"center\" title=\"$tekst\" id=\"key_83\">".findtekst(104,$sprog_id)."</td>\n";
 print "</tr>\n";
 #################################################################################################################
 print "<tr style=\"height:35px;\">\n";
@@ -342,15 +342,15 @@ var valid_menu_items = $valid_menu_items;
 
 function clearBuffer(col){
 	buffer = '';
-	$("#"+col).css("color","initial");
+	$("#key_"+col).css("color","initial");
 }
 
 $(document).keyup(function(e){
 	if(buffer.length != 2 && gruppe.indexOf(e.which) != -1){ 		// TRUE hvis buffer er tom og gyldig tast
 		buffer = '' + e.which;						// Gem tast i buffer
-		$("#"+e.key).css("color","red");
+		$("#key_"+e.which).css("color","red");
 		clearTimeout(timer);
-		timer = setTimeout(function(){clearBuffer(e.key)}, timeout);	// Gem buffer i nn millisekunder
+		timer = setTimeout(function(){clearBuffer(e.which)}, timeout);	// Gem buffer i nn millisekunder
 	} else if(buffer.length == 2 && raekke.indexOf(e.which) != -1) {	// TRUE hvis forrige tast er gemt i buffer
 		buffer = '' + buffer + e.which;					// Dan kombination
 		clearTimeout(timer);
