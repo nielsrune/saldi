@@ -342,7 +342,8 @@ var valid_menu_items = $valid_menu_items;
 
 function clearBuffer(col){
 	buffer = '';
-	$("#key_"+col).css("color","initial");
+	$("#key_"+col).css("color","black");					// IE, Edge
+	$("#key_"+col).css("color","initial");					// Chrome, Firefox
 }
 
 $(document).keyup(function(e){
