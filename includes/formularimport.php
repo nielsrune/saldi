@@ -28,7 +28,7 @@
 
 function formularimport($filnavn,$formularnr) {
 	global $db_encode;
-	
+
 $fp=fopen($filnavn,"r");
 	if ($fp) {
 		if ($formularnr) $qtxt="delete from formularer where formular='$formularnr'";

@@ -1,12 +1,16 @@
 <?php
-// -------------finans/budget.php----lap 3.0.4------2010-07-01------------
+// -------------finans/budget.php ---------------------- 3.5.6 -- 2015-06-22 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg
-
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
+//
 // Dette program er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
 // GNU General Public Licensen for flere detaljer.
@@ -14,8 +18,16 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2010 DANOSOFT ApS
-// ----------------------------------------------------------------------
+// Copyright (c) 2004-2014 DANOSOFT ApS
+// ----------------------------------------------------------------------------
+//
+// 20130210 Break ændret til break 1
+// 20140909 - Dubletter i regnskab saldi_660  
+// 20140923 - Definerer $MD som array da den bruges både som en og 2 dimentionelt. Følge af 20140909
+// 20141007 - Definerer $id & $amount som arrays da de bruges både som en og 2 dimentionelt. Følge af 20140909
+// 20141219 - rettelse til 20141007 - $id & $amount skal ikke devineres som arrays ved "udflyld med sidste års tal".
+// 20150622 CA  Budgetdata kan hentes som CSV-fil. 
+
 
 @session_start();
 $s_id=session_id();
@@ -41,15 +53,16 @@ $startaar=$row['box2'];
 $slutmaaned=$row['box3'];
 $slutaar=$row['box4'];
 $slutdato=31;
+$filnavn="../temp/$db/budget_".$startaar.$startmaaned."-".$slutaar.$slutmaaned."_".$bruger_id.".csv"; # 20150622 del 1 start
+$fp=fopen($filnavn,"w"); # 20150622 del 1 slut
 		
 if (!$udfyld && isset($_POST['gem'])) {
-# echo "Gemmer nu<br>";	
+#cho "Gemmer nu<br>";	
 	$kontoantal=$_POST['kontoantal'];
 	$maanedantal=$_POST['maanedantal'];
 	$kontonr=$_POST['kontonr'];
 	$amount=$_POST['amount'];
 	$id=$_POST['id'];
-	
 	for ($x=1;$x<=$kontoantal;$x++) {
 		for ($z=1;$z<=$maanedantal;$z++) {
 			$b_id=$id[$x][$z]*1;
@@ -57,7 +70,6 @@ if (!$udfyld && isset($_POST['gem'])) {
 			if(strpos($tmp,",")) $amount[$x][$z]=usdecimal($amount[$x][$z]);
 			$tal=round($amount[$x][$z],0);
 			if ($b_id) {
-# echo "update budget set amount='$tal' where id='$b_id'<br>";	
 				db_modify("update budget set amount='$tal' where id='$b_id'",__FILE__ . " linje " . __LINE__);
 			} elseif ($tal) {
 				db_modify("insert into budget(regnaar,kontonr,md,amount) values ($regnaar,'$kontonr[$x]','$z','$tal')",__FILE__ . " linje " . __LINE__);
@@ -66,9 +78,17 @@ if (!$udfyld && isset($_POST['gem'])) {
 	}
 	db_modify("delete from budget where amount = 0",__FILE__ . " linje " . __LINE__);
 }
-	
-	
-		
+
+$x=0;
+$md=array(); #20140923
+$q=db_select("select id,amount,md,kontonr from budget where regnaar='$regnaar' order by kontonr,md,id",__FILE__ . " linje " . __LINE__); #20140909
+while ($r=db_fetch_array($q)) {
+	$id[$x]=$r['id'];
+	$md[$x]=$r['md'];
+	$kontonr[$x]=$r['kontonr'];
+	if ($x && $md[$x]==$md[$x-1] && $kontonr[$x]==$kontonr[$x-1]) db_modify("delete from budget where id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
+	$x++;
+}
 
 print "<div align=\"center\">";
 
@@ -87,17 +107,19 @@ print "	</td></tr> ";
 while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
 #echo "$slutdato, $slutmaaned, $slutaar	";				
 	$slutdato=$slutdato-1;
-	if ($slutdato<28) break;
+	if ($slutdato<28) break 1;
 }
 #echo "slutdato $slutdato<br>";		
 $regnstart = $startaar. "-" . $startmaaned . "-" . '01';
 $regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 
+$md=array(); #20140923
 $tmpaar=$startaar;
 $md[1][0]=$startmaaned;
 $md[1][1]=$regnstart;
 $md[1][2]=0;
 $x=1;
+
 while ($md[$x][1]<$regnslut) {
 	$x++;
 	$md[$x][0]=$md[$x-1][0]+1;
@@ -110,6 +132,7 @@ while ($md[$x][1]<$regnslut) {
 	$md[$x][1]=$tmpaar. "-" .$tmp."-01"; 
 	$md[$x][2]=0;
 }
+
 if ($udfyld) {
 
 	$tmpaar=$startaar-1;
@@ -137,6 +160,7 @@ if ($udfyld) {
 #echo $md[1][2];
 #echo "<br>";
 $maanedantal=$x-1;
+
 $x=0;
 $query = db_select("select * from kontoplan where regnskabsaar='$regnaar' and lukket != 'on' order by kontonr",__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)) {
@@ -160,16 +184,18 @@ while ($row = db_fetch_array($query)) {
 	}
 }
 $kontoantal=$x;
-
+if (!$udfyld) {
+	$id=array(); #20141007
+	$amount=array(); #20141007
+}
 for ($x=1; $x<=$kontoantal; $x++) {
 	$q=db_select("select id,amount,md from budget where regnaar='$regnaar' and kontonr='$kontonr[$x]' order by md",__FILE__ . " linje " . __LINE__);
 	$b=0;
 	while ($r=db_fetch_array($q)) {
-#		$amount[$x][$b]=0;
 		$b=$r['md'];
+		$amount[$x][$b]=0;
 		$id[$x][$b]=$r['id'];
 		if (!$udfyld) $amount[$x][$b]=$r['amount'];
-#		echo $id[$x][$b]." | $kontonr[$x] | $b | ".$amount[$x][$b]."<br>";
 	}
 }
 $query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
@@ -183,7 +209,7 @@ $regnskabsaar=$row['beskrivelse'];
 
 while (!checkdate($slutmaaned,$slutdato,$slutaar)){
 	$slutdato=$slutdato-1;
-	if ($slutdato<28){break;}
+	if ($slutdato<28)break 1;
 }
 
 $regnstart = $startaar. "-" . $startmaaned . "-" . '01';
@@ -210,13 +236,16 @@ print "<td><b> Kontonavn</b></td> ";
 #for ($z=1; $z<=$maanedantal; $z++) {
 #	print "<td width=20 title=\"$z. regnskabsm&aring;ned\"><b> MD_$z<b><br></td>";
 #}
-periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, "regnskabsmaaned", $regnskabsaar);
-print "<td align=right><b> I alt</a></b></td> ";
+$budget_csvdata="\"Kontonr\";\"Kontonavn\";"; # 20150622 del 2 start
+$budget_csvdata.=periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, "regnskabsmaaned", $regnskabsaar);
+print "<td align=right><b> I alt</a></b></td> "; 
+$budget_csvdata.="\"I alt\"\n"; # 20150622 del 2 slut
 print "</tr>";
 
 $y='';
 print "<form name=budget action=budget.php?regnaar=$regnaar&returside=$returside method=post>";
 for ($x=1; $x<=$kontoantal; $x++){
+	$budget_csvdata.="\"$kontonr[$x]\";\"$beskrivelse[$x]\";"; #20150622
 	print "<input type=\"hidden\" name=\"kontonr[$x]\" value=\"$kontonr[$x]\">";
 	if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 	else {$linjebg=$bgcolor5; $color='#000000';}
@@ -241,12 +270,14 @@ for ($x=1; $x<=$kontoantal; $x++){
 				$tal=$amount[$x][$z];
 				$ultimo[$x]+=$tal;
 				if (!$tal) $tal="";
-				print "<td><input type=\"text\" size=\"6\" style=\"text-align:right\" name=\"amount[$x][$z]\" value=\"$tal\"></td>";
+				print "<td title=\"".$id[$x][$z]."\"><input type=\"text\" size=\"6\" style=\"text-align:right\" name=\"amount[$x][$z]\" value=\"$tal\"></td>";
 				$tmp=$id[$x][$z];
 				print "<input type = \"hidden\" name=\"id[$x][$z]\" value=\"$tmp\">"; 
 			}	else print "<td align=right>$tal<br></td>";
+			$budget_csvdata.="\"$tal\";"; # 20150622
 		}
 		print "<td align=right>$ultimo[$x]<br></td>";
+		$budget_csvdata.="\"$ultimo[$x]\";"; # 20150622
 		$y='';
 		print "</tr>";
 	} else {
@@ -257,22 +288,32 @@ for ($x=1; $x<=$kontoantal; $x++){
 			$tal=0;
 			for ($y=1;$y<$x;$y++) {
 				if ($kontonr[$y]>=$fra_kto[$x]) {
-#echo "$kontonr[$y]<br>";						
 				 	$tal+=$amount[$y][$z];
-#echo $amount[$y][$z]."$tal<br>";	
 				}
 			}
 			print "<td align=right>$tal<br></td>";
+			$budget_csvdata.="\"$tal\";"; # 20150622
 			$ultimo[$x]+=$tal;
 		}
 		print "<td align=right>$ultimo[$x]<br></td></tr>";
+		$budget_csvdata.="\"$ultimo[$x]\";"; # 20150622
 	}
 	if ($kontotype[$x]=='H') {$linjebg='#ffffff'; $color='#ffffff';}
+	$budget_csvdata.="\n"; # 20150622
 }
-print "<input type=\"hidden\" name=\"kontoantal\" value=\"$kontoantal\">";
-print "<input type=\"hidden\" name=\"maanedantal\" value=\"$maanedantal\">";
-print "<tr><td><input type = \"submit\" name=\"gem\" value=\"Gem\" accesskey=\"g\"></td></tr>";
-print "</form>";
+
+if ($fp) { # 20150622 del 3 start
+	fwrite ($fp, "$budget_csvdata");
+}
+fclose($fp);
+
+print "<input type='hidden' name='kontoantal' value='$kontoantal'>\n";
+print "<input type='hidden' name='maanedantal' value='$maanedantal'>\n";
+print "<tr>\n";
+print "<td><input type='submit' name='gem' value='Gem' accesskey='g'></td>\n";
+print "<td>Hent budget som datafil ved at &oslash;jreklikke p&aring; <a href='".$filnavn."'>dette link</a> og v&aelig;lg \"Gem link som ...\"."; 
+print "</tr>\n";
+print "</form>\n"; # 20150622 del 3 slut
 ####################################################################################################
 ?>
 </tbody>

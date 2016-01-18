@@ -1,6 +1,6 @@
 <?php
 
-// -------- api/kortbetaling.php----------lap 3.4.0 ----- 2014.03.15----------
+// -------- api/kortbetaling.php----------lap 3.5.8 ----- 2015.08.30----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,9 +19,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 //	2014.03.15 Indsat ,100 (procent) før ,'DO' i opret_ordrelinje grundet ændring af funktion
+//	2014.04.26 Indsat ,$vare_id før ,$r['varenr'] i opret_ordrelinje grundet ændring af funktion
+//	2015.08.30 Konto oprettes kun hvis den ikke allerede eksisterer. Søg efter $konto_id
 
 @session_start();
 $s_id=session_id();
@@ -51,6 +53,7 @@ print "<html><head>
 				</head>";
 $css="../css/standard.css";
 print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">";
+#print "<a href=\"cookietest.php\">cookietest</a>"; 
 
 if ($tilmeld=(if_isset($_POST['tilmeld']))) {
 	include("../includes/ordrefunc.php");
@@ -71,43 +74,59 @@ if ($tilmeld=(if_isset($_POST['tilmeld']))) {
 	$email=db_escape_string(trim(if_isset($_POST['email'])));
 	$tlf=db_escape_string(trim(if_isset($_POST['tlf'])));
 
-
 	$alert=tjek($metode,$belob,$bank_navn,$bank_reg,$bank_konto,$kontakt,$cvrnr,$firmanavn,$addr1,$postnr,$bynavn,$email,$tlf);
 	if ($alert=='OK') {
-		$kontonr=1000;
-		$x=0;
-		$ktonr=array();
-		$q=db_select("select * from adresser where art='D' and kontonr >='1000' order by kontonr",__FILE__ . " linje " . __LINE__);
-		while($r=db_fetch_array($q)) {
-			$ktonr[$x]=$r['kontonr'];
-			$x++;
-		}
-		while (in_array($kontonr,$ktonr)){
-			$kontonr++;
-		}
-		$gruppe=1;
-		if (!$firmanavn) {
-			$firmanavn=$kontakt;
-			$kontakt=NULL;
-			$kontotype='privat';
-		} else {
-			$kontotype='erhverv';
-		}
-		$art='D';
-		($metode=='PBS')?$pbs='on':$pbs='';
-		$qtxt="insert into adresser(kontonr,firmanavn,addr1,addr2,postnr,bynavn,email,cvrnr,tlf,kontakt,gruppe,kontotype,art,bank_navn,bank_reg,bank_konto,pbs,pbs_nr) values ('$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$email','$cvrnr','$tlf','$kontakt','$gruppe','$kontotype','$art','$bank_navn','$bank_reg','$bank_konto','$pbs','')";
-		#cho "$qtxt<br>";
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$qtxt="select id from adresser where kontonr='$kontonr' and art = 'D'";
-		#cho "$qtxt<br>";
-		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$konto_id=$r['id'];
-	#cho "konto_id $konto_id<br>";
-		if ($konto_id) {
-			if ($kontakt) {
-				$qtxt="insert into ansatte(konto_id, navn) values ('$konto_id', '$kontakt')";
-				#cho "$qtxt<br>";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
+		$konto_id=NULL;
+		if ($cvrnr) {
+			if ($r=db_fetch_array(db_select("select * from adresser where art='D' and cvrnr ='$cvrnr'",__FILE__ . " linje " . __LINE__))) {
+				$konto_id=$r['id'];
+				$kontonr=$r['kontonr'];
+			} elseif ($r=db_fetch_array(db_select("select * from adresser where art='D' and tlf='$tlf' and addr1='$addr1' and postnr='$postnr'",__FILE__ . " linje " . __LINE__))) {
+				$konto_id=$r['id'];
+				$kontonr=$r['kontonr'];
+			} else {
+				$kontonr=1000;
+				$x=0;
+				$ktonr=array();
+				$q=db_select("select * from adresser where art='D' and kontonr >='1000' order by kontonr",__FILE__ . " linje " . __LINE__);
+				while($r=db_fetch_array($q)) {
+					$ktonr[$x]=$r['kontonr'];
+					$x++;
+				}
+				while (in_array($kontonr,$ktonr)) $kontonr++;
+			}
+			$gruppe=1;
+			if (!$firmanavn) {
+				$firmanavn=$kontakt;
+				$kontakt=NULL;
+				$kontotype='privat';
+			} else {
+				$kontotype='erhverv';
+			}
+			$art='D';
+		 	($metode=='PBS')?$pbs='on':$pbs='';
+			if ($konto_id) {
+				$qtxt="update adresser set firmanavn='$firmanavn',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',email='$email',";
+				$qtxt.="cvrnr='$cvrnr',tlf='$tlf',kontakt='$kontakt',gruppe='$gruppe',kontotype='$kontotype',art='$art' where id='$konto_id'"; 
+			} else {
+				$qtxt="insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,email,cvrnr,tlf,kontakt,gruppe,kontotype,art,bank_navn,";
+				$qtxt.="bank_reg,bank_konto,pbs,pbs_nr) values ('$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$email','$cvrnr',";
+				$qtxt.="'$tlf','$kontakt','$gruppe','$kontotype','$art','$bank_navn','$bank_reg','$bank_konto','$pbs','')";
+			}
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			if ($konto_id && $bank_navn && $bank_reg=$bank_reg && $bank_konto) {
+				db_modify("update adresser set bank_navn='$bank_navn',bank_reg='$bank_reg',bank_konto='$bank_konto' where id='$konto_id'",__FILE__ . " linje " . __LINE__);
+			}
+			if (!$konto_id) {
+				$qtxt="select id from adresser where kontonr='$kontonr' and art = 'D'";
+				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+				$konto_id=$r['id'];
+			}
+			if ($konto_id && $kontakt) {
+				if (!$r=db_fetch_array(db_select("select id from ansatte where konto_id='$konto_id' and navn ='$kontakt'",__FILE__ . " linje " . __LINE__))) {
+					$qtxt="insert into ansatte(konto_id, navn) values ('$konto_id', '$kontakt')";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				}
 			}
 			$qtxt="select max(ordrenr) as ordrenr from ordrer where art='DO'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -117,8 +136,8 @@ if ($tilmeld=(if_isset($_POST['tilmeld']))) {
 			$art='DO';
 			if ($metode=='PBS') $udskriv_til="PBS";
 			else $udskriv_til="email";
-			$qtxt="insert into ordrer(konto_id,kontonr,ordrenr,firmanavn,addr1,addr2,postnr,bynavn,email,kontakt,art,status,udskriv_til,ordredate) values ('$konto_id','$kontonr','$ordrenr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$email','$kontakt','$art','$status','$udskriv_til','$ordredate')";
-#cho "$qtxt<br>";
+			if ($ordre_id) $qtxt="update ordrer set konto_id='$konto_id',kontonr='$kontonr',ordrenr=$ordrenr,firmanavn=$firmanavn,addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',cvrnr='$cvrnr',email='$email',kontakt='$kontakt',art='$art',status='$status',udskriv_til='$udskriv_til',ordredate='$ordredate')";
+			else $qtxt="insert into ordrer(konto_id,kontonr,ordrenr,firmanavn,addr1,addr2,postnr,bynavn,cvrnr,email,kontakt,art,status,udskriv_til,ordredate) values ('$konto_id','$kontonr','$ordrenr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$cvrnr','$email','$kontakt','$art','$status','$udskriv_til','$ordredate')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
 			$r=db_fetch_array(db_select("select max(id) as id from ordrer where konto_id='$konto_id' and art = '$art'",__FILE__ . " linje " . __LINE__));
 			$ordre_id=$r['id'];
@@ -126,18 +145,14 @@ if ($tilmeld=(if_isset($_POST['tilmeld']))) {
 			else $txt="Oprettet til kortbetaling - betaling ikke gennemført";
 			$txt=db_escape_string($txt);
 			$korttxt=$txt;
-			#cho "$txt<br>";
 			$qtxt="insert into ordrelinjer(ordre_id,beskrivelse,posnr,vare_id) values ('$ordre_id','$txt','1','0')";
-#cho "$qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
 			#cho "vare_id $vare_id<br>";
 			if ($vare_id) {
 				$amount=usdecimal($belob);
 				$qtxt="select * from varer where id = '$vare_id'";
-#cho "$qtxt<br>";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-#cho "opret_ordrelinje($ordre_id,$r[varenr],$r[antal],$r[beskrivelse],$amount,'0','DO',$r[momsfri],'2','0','0','','','')<br>";
-				opret_ordrelinje($ordre_id,$r['varenr'],1,$r['beskrivelse'],$amount,'0',100,'DO',$r['momsfri'],'2','0','0','','','');
+				opret_ordrelinje($ordre_id,$vare_id,$r['varenr'],1,$r['beskrivelse'],$amount,'0',100,'DO',$r['momsfri'],'2','0','0','','','');
 			}
 		} 
 		if ($metode=='PBS') {
@@ -158,6 +173,23 @@ if (!$alert) {
 	$r = db_fetch_array(db_select("select * from grupper where art = 'DIV' and kodenr = '5'",__FILE__ . " linje " . __LINE__));
 	$merchant_id=trim($r['box4']);$md5secret=trim($r['box5']);
 
+	if ($ordre_id=if_isset($_GET['ordre_id'])) {
+		$r = db_fetch_array(db_select("select * from ordrer where id = '$ordre_id'",__FILE__ . " linje " . __LINE__));
+		$konto_id=$r['konto_id'];
+		$kontonr=$r['kontonr'];
+		$kontakt=$r['kontakt'];
+		$cvrnr=$r['cvrnr'];
+		$firmanavn=$r['firmanavn'];
+		$addr1=$r['addr1'];
+		$addr2=$r['addr2'];
+		$postnr=$r['postnr'];
+		$bynavn=$r['bynavn'];
+		$email=$r['email'];
+		$r = db_fetch_array(db_select("select tlf from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__));
+		$tlf=$r['tlf'];
+		$r = db_fetch_array(db_select("select pris from ordrelinjer where ordre_id = '$ordre_id' and pris>'0'",__FILE__ . " linje " . __LINE__));
+		$belob=dkdecimal($r['pris']);
+	}
 	
 	$x=0;
 	$qtxt="select id,beskrivelse from varer where publiceret='on' and lukket !='on' order by beskrivelse";
@@ -214,9 +246,7 @@ if (!$alert) {
 #print "<tr><td><small>+++ For at blive tilmeldt PBS skal CPR-nr./CVR-nr. opgives.<br>Endvidere, har du mulighed for at opnå skattefradrag,<br>når du giver et bidrag til $eget_firmanavn.<br>Hvis du vil have glæde af dit fradrag, skal du indberette<br>dit CPR-nr. eller CVR-nr. til $eget_firmanavn,<br>hvorefter $eget_firmanavn indberetter dette til SKAT.</small></td></tr>"; 
 print "</html>";
 
-function kortbetaling($id,$ordernumber,$ordre_id,$sum,$kontakt,$cvrnr,$firmanavn,$addr1,$postnr,$bynavn,$email,$tlf,$korttxt) {
-global $regnskab;
-
+function kortbetaling($regnskab,$ordernumber,$ordre_id,$sum,$kontakt,$cvrnr,$firmanavn,$addr1,$postnr,$bynavn,$email,$tlf,$korttxt) {
 ?>
 <script LANGUAGE="JavaScript" SRC="overlib.js"></script>
 <script Language="JavaScript">
@@ -341,9 +371,9 @@ global $regnskab;
 	print "</tbody></table></td></tr>";
 	$spantekst="<big>Klik her for at l&aelig;se handelsbetingelserne.</big>";
 	print "<tr><td>Accepterer <span onmouseover=\"return overlib('$spantekst', WIDTH=800);\" onmouseout=\"return nd();\"><a onMouseOver=\"this.style.cursor = 'pointer'\" onClick=\"javascript:betingelser=window.open('betingelser.html','betingelser','left=10,top=10,width=400,height=400,scrollbars=1,resizable=1');betingelser.focus();\"><u>betingelser</u></a></span></td>\n";
-	print "<td colspan= \"2\" align=\"right\"><input type=\"checkbox\" name=\"betingelser\" $betingelser></td></tr>";
+	print "<td colspan= \"1\" align=\"right\"><input type=\"checkbox\" name=\"betingelser\" $betingelser></td></tr>";
 	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\" value=\"Gå til betaling\" /><td></tr></form>";
-	print "<form action=\"tilmelding.php?id=$id&ordernumber=$ordernumber\" method=\"post\">";#
+	print "<form action=\"kortbetaling.php?regnskab=$regnskab&ordre_id=$ordre_id&ordernumber=$ordernumber\" method=\"post\">";#
 	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\" value=\"Fortryd\" /><td></tr></form>";
 	print "</tbody></table>";
 #	<input type=\"submit\" value=\"Open Quickpay payment window\" />";

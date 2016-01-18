@@ -1,5 +1,5 @@
 <?php
-// ------------lager/lagerregulering.php------------lap 3.2.9------2013-02-10---
+// ------------lager/lagerregulering.php------------lap 3.5.3------2015-03-09---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -16,11 +16,12 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
-// 2013.02.10 Break ændret til break 1
+// 2014.12.23 Div ændringer i forbindelse med indførelse at aut lager.
+// 2015.03.09 Auto lager blev ikke sat. Ændret $row til $r
 
 
 @session_start();
@@ -80,6 +81,9 @@ if ($_POST['bilag'] || $_POST['bilag']=='0') {
 	}
 }
 if ($antal>=1) {
+	$r=db_fetch_array(db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__));
+	$startaar=$r['box2']*1;
+	($startaar >= '2015')?$aut_lager='on':$aut_lager=NULL;
 	if (!$fejl && ($bilag || $bilag=='0')) {
 		$bilag=$bilag*1;
 		transaktion('begin');
@@ -87,7 +91,7 @@ if ($antal>=1) {
 			$id[$x]=$id[$x]*1;
 			$ny_beholdning[$x]*=1;
 			if ($r=db_fetch_array(db_select("select varenr,kostpris,beholdning,gruppe from varer where id = '$id[$x]'",__FILE__ . " linje " . __LINE__))) {
-				$varenr=addslashes($r['varenr']);
+				$varenr=db_escape_string($r['varenr']);
 				$beholdning=$r['beholdning']*1;
 				$regulering=$ny_beholdning[$x]-$beholdning;
 				$kostpris=abs($r['kostpris']*$regulering);
@@ -95,52 +99,39 @@ if ($antal>=1) {
 				$gruppe=$r['gruppe'];
 			
 				$r=db_fetch_array(db_select("select * from grupper where art = 'VG' and kodenr = '$gruppe'",__FILE__ . " linje " . __LINE__));
-#echo "select * from grupper where art = 'VG' and kodenr = '$gruppe'<br>";
 				$lagertilgang=$r['box1'];
 				$lagertraek=$r['box2'];
 				$varekob=$r['box3'];
 				$varesalg=$r['box4'];
 				$lagerregulering=$r['box5'];
-#echo "lagertilgang=$r[box1] lagertraek=$r[box2] varekob=$r[box3] varesalg=$r[box4] lagerregulering=$r[box5]<br>";
 				if ($lagerregulering) {
-#echo "$lagertraek && $kostpris && $lagerregulering<BR>";
-					if ($lagertraek && $kostpris && $lagerregulering) {
+					if (!$aut_lager && $lagertraek && $kostpris && $lagerregulering) {
 						if ($regulering < 0) {
-#echo "insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, faktura, kladde_id,afd, ansat, projekt, valuta, valutakurs, ordre_id)
-#								values
-#								($lagerregulering, '$bilag', '$transdate', '$transdate', '$logtime', 'Lagerregulering varenr: $varenr ($brugernavn)', '$kostpris', '', '0', '0', '0', '0', '1', '100', '0')<br>";
 							db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, faktura, kladde_id,afd, ansat, projekt, valuta, valutakurs, ordre_id)
 								values
 								($lagerregulering, '$bilag', '$transdate', '$logdate', '$logtime', 'Lagerregulering varenr: $varenr ($brugernavn)', '$kostpris', '', '0', '0', '0', '0', '1', '100', '0')",__FILE__ . " linje " . __LINE__);
-#echo "insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, faktura, kladde_id,afd, ansat, projekt, valuta, valutakurs, ordre_id)
-#								values
-#								($lagertraek, '$bilag', '$transdate', '$transdate', '$logtime', 'Lagerregulering varenr: $varenr ($brugernavn)', '$kostpris', '', '0', '0', '0', '0', '1', '100', '0')<br>";
 							db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, faktura, kladde_id,afd, ansat, projekt, valuta, valutakurs, ordre_id)
 								values
 								($lagertraek, '$bilag', '$transdate', '$logdate', '$logtime', 'Lagerregulering varenr: $varenr ($brugernavn)', '$kostpris', '', '0', '0', '0', '0', '1', '100', '0')",__FILE__ . " linje " . __LINE__);
 						} else {
-#echo "insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, faktura, kladde_id,afd, ansat, projekt, valuta, valutakurs, ordre_id) 
-#								values
-#					  		($lagerregulering, '$bilag', '$transdate', '$transdate', '$logtime', 'Lagerregulering varenr: $varenr ($brugernavn)', '$kostpris', '', '0', '0', '0', '0', '1', '100', '0')<br>";
 							db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, faktura, kladde_id,afd, ansat, projekt, valuta, valutakurs, ordre_id) 
 								values
 					  		($lagerregulering, '$bilag', '$transdate', '$logdate', '$logtime', 'Lagerregulering varenr: $varenr ($brugernavn)', '$kostpris', '', '0', '0', '0', '0', '1', '100', '0')",__FILE__ . " linje " . __LINE__);
-#echo "insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, faktura, kladde_id,afd, ansat, projekt, valuta, valutakurs, ordre_id)
-#							values
-#							($lagertraek, '$bilag', '$transdate', '$transdate', '$logtime', 'Lagerregulering varenr: $varenr ($brugernavn)', '$kostpris', '', '0', '0', '0', '0', '1', '100', '0')<br>";
 							db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, faktura, kladde_id,afd, ansat, projekt, valuta, valutakurs, ordre_id)
 							values
 							($lagertraek, '$bilag', '$transdate', '$logdate', '$logtime', 'Lagerregulering varenr: $varenr ($brugernavn)', '$kostpris', '', '0', '0', '0', '0', '1', '100', '0')",__FILE__ . " linje " . __LINE__);
 						}	
 					}
-					$tmp=$regulering*-1;
-#echo "insert into batch_salg(batch_kob_id,vare_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr) 
-#						values 
-#						(0,$id[$x],0,'$transdate','$transdate',0,$tmp,'$stkpris','1')<br>";
-					db_modify("insert into batch_salg(batch_kob_id,vare_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr) 
-					values 
-					(0,$id[$x],0,'$transdate','$transdate',0,$tmp,'$stkpris','1')",__FILE__ . " linje " . __LINE__);
-#echo "update varer set beholdning='$ny_beholdning[$x]' where id='$id[$x]'<br>";
+					if ($regulering > 0) { 
+						db_modify("insert into batch_kob(vare_id,linje_id,kobsdate,fakturadate,ordre_id,antal,pris,rest) 
+						values 
+						('$id[$x]','0','$transdate','$transdate','0','$regulering','$stkpris','0')",__FILE__ . " linje " . __LINE__);
+					} else {
+						$tmp=$regulering*-1;
+						db_modify("insert into batch_salg(batch_kob_id,vare_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr) 
+						values 
+						('0','$id[$x]','0','$transdate','$transdate','0','$tmp','$stkpris','1')",__FILE__ . " linje " . __LINE__);
+					}
 					db_modify("update varer set beholdning='$ny_beholdning[$x]' where id='$id[$x]'",__FILE__ . " linje " . __LINE__);
 				} else print "<BODY onLoad=\"javascript:alert('Kontonummer for lagerregulering mangler (Indstillinger -> Varegrp.)')\">";	
 			}
@@ -159,7 +150,7 @@ if ($antal>=1) {
 				$m=substr($aarslut,4,2);
 				while(!checkdate($m,$d,$y)) {
 					$d--; 
-					if ($d<1) break 1;
+					if ($d<1) break;
 				}
 				$dato=$d."-".$m."-".$y;
 			} elseif ($ym<$aarstart) {
@@ -182,5 +173,4 @@ if ($antal>=1) {
 		print "</form>";
 	}
 }
-
 ?>

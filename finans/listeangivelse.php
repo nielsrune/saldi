@@ -1,6 +1,6 @@
 <?php
 
-// ------- finans/listeangivelse.php ----- lap 3.2.9 ---- 2012-05-02 ---
+// ------- finans/listeangivelse.php ------------- lap 3.4.3 --- 2014-07-29 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,8 +19,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
-// ----------------------------------------------------------------------
+// Copyright (c) 2004-2014 DANOSOFT ApS
+// ----------------------------------------------------------------------------
+// 
+// 20130210 Break ændret til break 
+// 20140729 CA  - Listeanvisning ændres fra kvartal til måned - ca. Søg 20140729
 
 
 @session_start();
@@ -75,34 +78,23 @@ while ($row=db_fetch_array($query)) {
 
 $debughtml.="<p>[".$euvarekonto."|".$euydelseskonto."]</p>\n";
 
-if ($_POST){
-        $kvartal=isset($_POST['kvartal'])? $_POST['kvartal']:NULL;
+if ($_POST){ # 20140729 Start afsnit 1
+        $listeperiode=isset($_POST['listeperiode'])? $_POST['listeperiode']:NULL;
 } elseif ($_GET) {
-        $kvartal=isset($_GET['kvartal'])? $_GET['kvartal']:NULL;
+        $listeperiode=isset($_GET['listeperiode'])? $_GET['listeperiode']:NULL;
 } else {
 	# $bodyhtml.=vis_alle_kvartaler();
-	$bodyhtml.="\n<h1>Ingen kvartaler valgt</h1>\n<p>Klik p&aring; linket Luk og v&aelig;lg en periode.</p>\n\n";
+	$bodyhtml.="\n<h1>Ingen perioder valgt</h1>\n<p>Klik p&aring; linket Luk og v&aelig;lg en periode.</p>\n\n";
 	print $tophtml.$bodyhtml.$bottomhtml;
 	exit;
 }
 
-list($kvartal_kvartal, $kvartal_aar) = explode(".", $kvartal);
-$kvartal_startmd=($kvartal_kvartal*3)-2;
-$kvartal_slutmd=($kvartal_kvartal*3);
+list($liste_md, $liste_aar) = explode(".", $listeperiode);
 
-if ( $kvartal_startmd < 10 ) {
-	$kvartal_startdato=$kvartal_aar."-0".$kvartal_startmd."-01";
-} else {
-	$kvartal_startdato=$kvartal_aar."-".$kvartal_startmd."-01";
-}
-
-if ( $kvartal_slutmd < 10 ) {
-	$kvartal_slutdato=$kvartal_aar."-0".$kvartal_slutmd."-".sidste_dag_i_maaned($kvartal_aar, $kvartal_slutmd);
-	$kvartal_slutdato_yymmdd=substr($kvartal_aar,2,2)."0".$kvartal_slutmd.sidste_dag_i_maaned($kvartal_aar, $kvartal_slutmd);
-} else {
-	$kvartal_slutdato=$kvartal_aar."-".$kvartal_slutmd."-".sidste_dag_i_maaned($kvartal_aar, $kvartal_slutmd);
-	$kvartal_slutdato_yymmdd=substr($kvartal_aar,2,2).$kvartal_slutmd.sidste_dag_i_maaned($kvartal_aar, $kvartal_slutmd);
-}
+if ( $liste_md < 10 ) $liste_md="0".$liste_md; 
+$liste_startdato=$liste_aar."-".$liste_md."-01";
+$liste_slutdato=$liste_aar."-".$liste_md."-".sidste_dag_i_maaned($liste_aar, $liste_md);
+$liste_slutdato_yymmdd=substr($liste_aar,2,2).$liste_md.sidste_dag_i_maaned($liste_aar, $liste_md); # 20140729 slut afsnit 1
 
 #$query=db_select("select * from grupper where art = 'RA' order by box2 desc",__FILE__ . " linje " . __LINE__);
 #$x=0;
@@ -131,7 +123,7 @@ while ($row = db_fetch_array($query)) {
 	$debughtml.= "\n<table>\n";
 	$debughtml.= "<tr><th>Dato</th><th>Cvrnr.</th><th>Bel&oslash;b</th><th>Valuta</th></tr>\n";
 #cho "select id, fakturadate, kontonr, sum, cvrnr, valuta, valutakurs from ordrer where konto_id = '$row[id]' and fakturadate >= '$kvartal_startdato' and fakturadate <= '$kvartal_slutdato' and status = '4' order by cvrnr<br>";
-	$q=db_select("select id, fakturadate, kontonr, sum, cvrnr, valuta, valutakurs from ordrer where konto_id = '$row[id]' and fakturadate >= '$kvartal_startdato' and fakturadate <= '$kvartal_slutdato' and status = '4' order by cvrnr",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select id, fakturadate, kontonr, sum, cvrnr, valuta, valutakurs from ordrer where konto_id = '$row[id]' and fakturadate >= '$liste_startdato' and fakturadate <= '$liste_slutdato' and status = '4' order by cvrnr",__FILE__ . " linje " . __LINE__); # 20140729 afsnit 2
 	while ($r = db_fetch_array($q)) {
 		$fakturaer++;
 		if ( $r[cvrnr] ) { 
@@ -185,7 +177,7 @@ while ($row = db_fetch_array($query)) {
 } 
 
 $tophtml.= "<a href='$returside' accesskey=L>Luk</a></td>\n";
-$tophtml.= "<td width=80% $top_bund align=center>Listeangivelse ".$kvartal_kvartal.". kvartal ".$kvartal_aar."</td>\n";
+$tophtml.= "<td width=80% $top_bund align=center>Listeangivelse ".$liste_md.". måned ".$liste_aar."</td>\n"; # 20140729 afsnit 3
 $tophtml.= "<td width=10% $top_bund >&nbsp;</td>\n";
 $tophtml.= "</tr></tbody></table></td>\n";
 $tophtml.= " </td></tr>\n<tr><td align=\"center\" valign=\"top\" width=\"100%\">\n";
@@ -243,10 +235,10 @@ if ( isset($_POST[debug]) || isset($_GET[debug]) ) {
 }
 
 
-function vis_alle_kvartaler() {
+function vis_alle_perioder() { # 20140729 afsnit 4
 	$retur="";
 	
-	$retur.="\n\n<h1>Her bliver alle kvartaler listet</h1>\n\n";
+	$retur.="\n\n<h1>Her bliver alle perioder listet</h1>\n\n";
 
 	return $retur;
 }
@@ -322,7 +314,7 @@ function slutdato($dato)
 		$dag=31;
 		while (!checkdate($md,$dag,$aar)) {
 			$dag=$dag-1;
-			if ($dag<28) break;
+			if ($dag<28) break 1;
 		}
 	} elseif($md==12) {
 		$md=1;

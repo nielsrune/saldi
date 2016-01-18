@@ -24,12 +24,14 @@ $s_id=session_id();
 // Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20131010 Tilføjet sletning af lås fra kladdeliste.
+// 20150114 PK - Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
 
+$title="logud";
 include("../includes/connect.php");
 include("../includes/online.php");
 if ($db && $db!=$sqdb) {
-	db_modify("update ordrer set tidspkt='' where hvem = '$brugernavn' and status < '3'",__FILE__ . " linje " . __LINE__);
-	db_modify("update kladdeliste set tidspkt='' where hvem = '$brugernavn' and bogfort != 'V'",__FILE__ . " linje " . __LINE__);
+	db_modify("update ordrer set tidspkt='' where hvem = '".db_escape_string($brugernavn)."' and status < '3'",__FILE__ . " linje " . __LINE__);
+	db_modify("update kladdeliste set tidspkt='' where hvem = '".db_escape_string($brugernavn)."' and bogfort != 'V'",__FILE__ . " linje " . __LINE__);
 }
 include("../includes/connect.php");
 $r=db_fetch_array(db_select("select * from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__));
@@ -41,6 +43,8 @@ if ($r['revisor']) {
 	}	
 }
 db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
+session_unset();
+session_destroy();
 print "<meta http-equiv=\"refresh\" content=\"0;URL='../index/index.php'\">";
 exit;
   

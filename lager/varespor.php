@@ -1,24 +1,29 @@
 <?php
 
-// ------------lager/varespor.php---------------------patch 3.4.2--2014.06.26--
+// ------------lager/varespor.php---------------------patch 3.5.8--2015.09.02--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
 //
 // Dette program er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------------
 //
 // 20140626 Tilføjet lagerregulering og ændret variabelnavn for dækningsbidrag.
+// 20150902	Linjer med 0 i antal undertrykkes og linjer uden ordre_id vises som Lagerreguleret
 
 @session_start();
 $s_id=session_id();
@@ -64,16 +69,17 @@ print "<tr><td colspan=5><hr></td></tr>";
 $kontosum=0;
 $z=0;
 $kobsliste=array();
-$query = db_select("select * from batch_kob where vare_id=$vare_id order by fakturadate",__FILE__ . " linje " . __LINE__);
+$query = db_select("select * from batch_kob where vare_id=$vare_id and antal != '0' order by fakturadate",__FILE__ . " linje " . __LINE__);# 20150902
 while ($row = db_fetch_array($query)) {
 	if ($row['ordre_id']) {
 		$q1 = db_select("select ordrenr, firmanavn from ordrer where id=$row[ordre_id]",__FILE__ . " linje " . __LINE__);
 		$r1 = db_fetch_array($q1); 
 	} else $r1=NULL;
 	print "<tr><td>".dkdato($row['fakturadate'])."</td>
-		<td align=right>".dkdecimal($row['antal'])."</td>
-		<td align=right onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[firmanavn]</u></td>
-		<td align=right onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[ordrenr]</u></td>";
+		<td align=right>".dkdecimal($row['antal'])."</td>";
+		if ($r1['firmanavn']) print "<td align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[firmanavn]</u></td>";
+		else print "<td align=\"right\">Lagerreguleret</td>";
+		print "<td align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[ordrenr]</u></td>";
 	$kobsantal=$kobsantal+$row['antal'];
 	$kobspris=$row['pris']*$row['antal'];	 
 	$kobssum=$kobssum+$kobspris;

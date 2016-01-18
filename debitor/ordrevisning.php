@@ -66,7 +66,7 @@ if (isset($_POST) && $_POST) {
 #	if (!isset($vis_felt[0])) $vis_felt[0]="";
 	$box3='ordrenr';
 	$box5=$justering[0];
-	$box6=addslashes($feltnavn[0]);
+	$box6=db_escape_string($feltnavn[0]);
 	$box7=$vis_linjeantal*1;
 	if (!$vis_linjeantal) $vis_linjeantal=50; 
 	for ($x=1;$x<=$vis_feltantal;$x++) {
@@ -76,7 +76,7 @@ if (isset($_POST) && $_POST) {
 			$feltbredde[$x]=$feltbredde[$x]*1;
 			$box4=$box4.",".$feltbredde[$x];
 			$box5=$box5.",".$justering[$x];
-			$box6=$box6.",".addslashes($feltnavn[$x]);
+			$box6=$box6.",".db_escape_string($feltnavn[$x]);
 	}
 }
 
@@ -85,25 +85,40 @@ if (isset($_POST) && $_POST) {
 	db_modify("update grupper set box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$vis_linjeantal' where art = 'OLV' and kode='$valg' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__);
 }
 
-print "<div align=\"center\">
-<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
-	<tr><td height = \"25\" align=\"center\" valign=\"top\">
+print "<div align=\"center\"><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+if ($menu=='T') {
+	$leftbutton="<a title=\"Klik her for at komme tilbage til ordrelisten\" href=\"../debitor/ordreliste.php\" accesskey=\"L\">LUK</a>";
+	$vejledning=NULL;
+	include("../includes/topmenu.php");
+	print "<div id=\"topmenu\" style=\"position:absolute;top:6px;right:0px\">";
+} elseif ($menu=='S') {
+	include("../includes/sidemenu.php");
+} else {
+	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">
 		<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>
 			<td width=\"10%\" align=center><div class=\"top_bund\"><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L>Luk</a></div></td>
 			<td width=\"80%\" align=center><div class=\"top_bund\">$title</a></div></td>
 			<td width=\"10%\" align=center><div class=\"top_bund\"><br></div></td>
 			 </tr>
 			</tbody></table>
-	</td></tr>
- <tr><td valign=\"top\" align=\"center\">
+	</td></tr>";
+}
+ print "<tr><td valign=\"top\" align=\"center\">
 <table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" valign = \"top\">
 <tbody>";
 
 print "<form name=ordrevisning action=ordrevisning.php?sort=$sort&valg=$valg method=post>";
-$felter=array("konto_id","firmanavn","addr1","addr2","postnr","bynavn","land","kontakt","kundeordnr","lev_navn","lev_addr1","lev_addr2","lev_postnr","lev_bynavn","lev_kontakt","ean","institution","betalingsbet","betalingsdage","kontonr","cvrnr","art","ordredate","levdate","fakturadate","notes","sum","momssats","status","ref","fakturanr","modtagelse","kred_ord_id","lev_adr","kostpris","moms","hvem","tidspkt","nextfakt","betalt","projekt","valuta","valutakurs","sprog","email","mail_fakt","pbs","mail","mail_cc","mail_bcc","mail_subj","mail_text","felt_1","felt_2","felt_3","felt_4","felt_5","vis_lev_addr","udskriv_til","restordre");
+# $felter=array("konto_id","firmanavn","addr1","addr2","postnr","bynavn","land","kontakt","kundeordnr","lev_navn","lev_addr1","lev_addr2","lev_postnr","lev_bynavn","lev_kontakt","ean","institution","betalingsbet","betalingsdage","kontonr","cvrnr","art","ordredate","levdate","fakturadate","notes","sum","momssats","status","ref","fakturanr","modtagelse","kred_ord_id","lev_adr","kostpris","moms","hvem","tidspkt","nextfakt","betalt","projekt","valuta","valutakurs","sprog","email","mail_fakt","pbs","mail","mail_cc","mail_bcc","mail_subj","mail_text","felt_1","felt_2","felt_3","felt_4","felt_5","vis_lev_addr","udskriv_til","restordre");
 
+$i=0;
+$q = db_select("select * from ordrer",__FILE__ . " linje " . __LINE__);
+while ($i < db_num_fields($q)) { 
+	$felter[$i] = db_field_name($q,$i); 
+	$i++; 
+}
+$felter[$i] = 'sum_m_moms';
 sort($felter);
-$feltantal=count($felter);
+#$feltantal=count($felter);
 print "<tr><td colspan=\"6\">V&aelig;lg hvilke felter der skal v&aelig;re synlige p&aring; oversigten</td></tr>";
 print "<tr><td colspan=\"6\">Ordrenr kan ikke frav&aelig;lges</td></tr>";
 print "<tr><td colspan=\"6\"><hr></td></tr>";
@@ -115,7 +130,26 @@ $justering=explode(",",$r['box5']);
 $feltnavn=explode(",",$r['box6']);
 $vis_linjeantal=$r['box7'];
 $vis_feltantal=count($feltbredde)-1;
-
+if (count($feltbredde)<=1) {
+	if ($valg=="tilbud") {
+		$vis_felt="ordrenr,ordredate,kontonr,firmanavn,ref,sum";
+		$justering="right,left,left,left,left,right";
+		$feltbredde="50,100,100,150,100,100";
+		$feltnavn="Tilbudsnr.,Tilbudsdato,Kontonr.,Firmanavn,S&aelig;lger,Tilbudssum";
+	} elseif ($valg=="ordrer") {
+		$vis_felt="ordrenr,ordredate,levdate,kontonr,firmanavn,ref,sum";
+		$justering="right,left,left,left,left,left,right";
+		$feltbredde="50,100,100,100,150,100,100";
+		$feltnavn="Ordrenr.,Ordredato,Levdato,Kontonr.,Firmanavn,S&aelig;lger,Ordresum";
+	} elseif ($valg=="faktura") {
+		$vis_felt=array("ordrenr","ordredate","fakturanr","fakturadate","nextfakt","kontonr","firmanavn","ref","sum");
+		$justering=array("right","left","right","left","left","left","left","left","right");
+		$feltbredde=array("50","100","100","100","100","150","100","100","100");
+		$feltnavn=array("Ordrenr.","Ordredato","Fakt.nr.","Fakt.dato","Genfakt.","Kontonr.","Firmanavn","S&aelig;lger","Fakturasum");
+	}
+	$vis_feltantal=count($feltbredde);
+	$vis_linjeantal=100;
+}
 print "<tr><td colspan=\"3\">Antal felter p&aring; fakturaoversigten</td><td><input class=\"inputbox\" type=text style=\"text-align:right\" size=2 name=vis_feltantal value=$vis_feltantal></td></tr>";
 print "<tr><td colspan=\"3\">Antal linjer p&aring; fakturaoversigten</td><td><input class=\"inputbox\" type=text style=\"text-align:right\" size=2 name=vis_linjeantal value=$vis_linjeantal></td></tr>";
 print "<tr><td colspan=\"6\"><hr></td></tr>";	
@@ -133,6 +167,7 @@ if ($justering[0] != "L") print "<option value=\"left\" style=\"text-align:left\
 if ($justering[0] != "C") print "<option value=\"center\" style=\"text-align:center\">center</option>"; 
 if ($justering[0] != "R") print "<option value=\"right\" style=\"text-align:right\">right</option>"; 
 print "</SELECT></td></tr>";
+#cho count($feltbredde)."<br>";
 for ($x=1;$x<=$vis_feltantal;$x++) {
 if (!$feltnavn[$x]) $feltnavn[$x]=$vis_felt[$x];
 	if ($feltbredde[$x]<=10) $feltbredde[$x]*=10;
@@ -140,7 +175,7 @@ if (!$feltnavn[$x]) $feltnavn[$x]=$vis_felt[$x];
 	print "<tr><td><input class=\"inputbox\" type=text name=pos[$x] style=\"text-align:right;width:40px;\" value=$x></td>";
 	print "<td colspan=2><SELECT class=\"inputbox\" NAME=vis_felt[$x]>";
 	print "<option>$vis_felt[$x]</option>";
-	for ($y=0;$y<$feltantal;$y++) {
+	for ($y=0;$y<count($felter);$y++) {
 		if ($felter[$y]!=$vis_felt[$x]) print "<option>$felter[$y]</option>";
 	}
 	print "</SELECT></td>";

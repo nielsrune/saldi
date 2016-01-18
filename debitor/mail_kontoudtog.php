@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id=session_id();
-// ------debitor/mail_kontoudtog.php-------lap 3.3.9------2014-01-28--------
+// ------debitor/mail_kontoudtog.php-------lap 3.5.3------2015-03-05--------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -20,12 +20,15 @@ $s_id=session_id();
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 2012.09.06 break ændret til break 1
 // 2012.10.04 Gmail afviser mails hvor 'from' ikke er *.saldi.dk søg 20121029
 // 2013.10.04 Tilføjet AddReplyTo. Søg AddReplyTo
 // 2014.01.28 Ændret from til korrekt afsendermail. Søg 20140128 
+// 2015.03.05 Finder selv sidste dato hvor saldi var 0. 20150305-1
+// 2015.03.05 Kan nu håndtere flere mailadresser adskilt med ;  20150305-2
+// 2015.05.05 Hvis der er forvalgte datoer overrules 20150305-1
 
 $modulnr=12;
 $css="../css/standard.css";
@@ -49,9 +52,13 @@ if ($_POST['submit']) {
 else {
 	$kontoliste=$_GET['kontoliste'];
 	$kontoantal=$_GET['kontoantal'];
-	$dato_fra=$_GET['dato_fra'];
-	$dato_til=$_GET['dato_til'];
-#	$regnaar=$_GET['regnaar'];
+	($_GET['dato_fra'])?$dato_fra=$_GET['dato_fra']:$dato_fra=NULL; #20150505
+	($_GET['dato_til'])?$dato_til=$_GET['dato_til']:$dato_til=NULL; #20150505
+#	$dato_til=$_GET['dato_til'];
+	for($x=1;$x<=$kontoantal;$x++) { #20150505
+		($dato_fra)?$fra[$x]=dkdato(usdate($dato_fra)):$fra[$x]=NULL;
+		($dato_til)?$til[$x]=dkdato(usdate($dato_til)):$til[$x]=NULL;
+	}
 }
 
 if ($submit=="send mail(s)"){
@@ -119,12 +126,13 @@ $regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 */
 print "<form name=kontoudtog action=mail_kontoudtog.php method=post>";
 
+#echo "$kontoantal<br>";
 for($x=1; $x<=$kontoantal; $x++) {
 	if ($kontoliste) {list($konto_id[$x], $kontoliste)=explode(";", $kontoliste, 2);}
 	
-	if (!$fra[$x]) $fra[$x]=$dato_fra;
-	$fromdate[$x]= usdate($fra[$x]);
-	$fra[$x]=dkdato($fromdate[$x]);
+#	if (!$fra[$x]) $fra[$x]=$dato_fra;
+	if ($fra[$x]) $fromdate[$x]=usdate($fra[$x]);
+#	$fra[$x]=dkdato($fromdate[$x]);
 #	else $fromdate[$x]= $dato_fra;
 	if (!$til[$x]) $til[$x]=$dato_til; 
 	$todate[$x]=usdate($til[$x]);
@@ -143,10 +151,12 @@ for($x=1; $x<=$kontoantal; $x++) {
 	}
 */
 	$til[$x]=dkdato($todate[$x]);
-	
+
+#echo 	"select * from adresser where id=$konto_id[$x]<br>";
 	$query = db_select("select * from adresser where id=$konto_id[$x]",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	if (!$email[$x]){$email[$x]=$row['email'];}
+#echo "E $email[$x]<br>";
 	print "<tr><td colspan=8><hr style=\"height: 10px; background-color: rgb(200, 200, 200);\"></td></tr>";
 	print "<tr><td colspan=\"5\">$row[firmanavn]</td><td colspan=\"2\" align=\"right\">Dato</td><td align=right> ".date('d-m-Y')."</td></tr>\n";
 	print "<tr><td colspan=\"5\">$row[addr1]</td><td colspan=\"2\" align=\"right\">Kontonr.</td><td align=right> $row[kontonr]</td></tr>\n";
@@ -162,6 +172,24 @@ for($x=1; $x<=$kontoantal; $x++) {
 	$kontosum=0;
 	$primo=0;
 	$primoprint=0;
+	if (!$fromdate[$x]) { #20150305-1
+		$y=0;
+		$q=db_select("select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]' order by transdate, faktnr",__FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$td[$y]=$r['transdate'];
+			($y)?$am[$y]=$am[$y-1]+afrund($r['amount'],2):$am[$y]=afrund($r['amount'],2);
+			$y++;
+		}
+		for ($y=0;$y<count($td);$y++) {
+			if (!$y) $fromdate[$x]=$td[$y];
+			if ($am[$y]==0 && $y<count($td)-1) $fromdate[$x]=$td[$y+1]; 
+			$fra[$x]=dkdato($fromdate[$x]);
+		}
+	}
+	if (!$fromdate[$x]) {
+		$fromdate[$x]=usdate($fra[$x]);
+	}
+	
 	$query = db_select("select * from openpost where konto_id=$konto_id[$x] and transdate<='$todate[$x]' order by transdate, faktnr",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		$amount=afrund($row['amount'],2);
@@ -331,11 +359,14 @@ function send_mails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $row['cvr'] ) $mailtext .= " * cvr ".$row['fax'];
 			$mailtext .= "<p>\n</td></tr>\n";
 			$mailtext .= "</table></body></html>\n";			
+			
+#echo "select * from adresser where art='S'<br>";
+			$row = db_fetch_array(db_select("select * from adresser where art='S'",__FILE__ . " linje " . __LINE__));
+			$afsendermail=$row['email'];
+			$afsendernavn=$row['firmanavn'];
 
-                       $row = db_fetch_array(db_select("select * from adresser where art='S'",__FILE__ . " linje " . __LINE__));
-                        $afsendermail=$row['email'];
-                        $afsendernavn=$row['firmanavn'];
-
+#echo "AFSM $afsendermail<br>";
+			
 			if ($charset=="UTF-8") {
 				$subjekt=utf8_decode($subjekt);
 				$mailtext=utf8_decode($mailtext);
@@ -364,7 +395,13 @@ function send_mails($kontoantal, $konto_id, $email, $fra, $til) {
 				$mail->From = $afsendermail;
 				$mail->FromName = $afsendernavn;
 			}
-			$mail->AddAddress($email[$x]); 
+			if (strpos($email[$x],";")) { #20150305-2
+				$tmp=array();
+				$tmp=explode(";",$email[$x]);
+				for ($i=0;$i<count($tmp);$i++){
+					if (strpos($tmp[$i],"@")) $mail->AddAddress($tmp[$i]); 
+				}
+			} else $mail->AddAddress($email[$x]); 
 			$mail->AddBCC($afsendermail); 
 			$mail->AddReplyTo($afsendermail,$afsendernavn);
 

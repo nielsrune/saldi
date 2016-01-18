@@ -1,11 +1,15 @@
 <?php
-// -----------------finans/hentordrer.php------------lap 3.1.4-------2011.02.25 -------
+// -----------------finans/hentordrer.php------------lap 3.2.9-------2013.02.10 -------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
 //
 // Dette program er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
@@ -14,8 +18,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
+
+// 20130210 Break ændret til break 1
+
 
 @session_start();
 $s_id=session_id();
@@ -382,7 +389,7 @@ function flytordre($kladde_id, $ordre_id) {
 	$x=0;
 	$query = db_select("select * from ordrer where status=3 and id='$ordre_id' order by fakturadate",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
-		list ($year, $month, $day) = explode('-', $row['fakturadate']);
+		list ($year, $month, $day) = split ('-', $row['fakturadate']);
 		$ym=$year.$month;
 		if (($ym>=$aarstart)&&($ym<=$aarslut)) {
 			$id=$row['id'];
@@ -454,7 +461,7 @@ function flytordre($kladde_id, $ordre_id) {
 				$tmp2=31;
 				while (!checkdate(substr($aarslut,4,2),$tmp2,substr($aarslut,0,4))) {
 					$tmp2--;
-					if ($tmp2<28) break;
+					if ($tmp2<28) break 1; #20130210
 				}
 				$tmp2=substr($aarslut,0,4)."-".substr($aarslut,4,2)."-".$tmp2;
 				$row = db_fetch_array(db_select("select MAX(bilag) as bilag from kassekladde where transdate>='$tmp1' and transdate<='$tmp2'",__FILE__ . " linje " . __LINE__));
@@ -550,7 +557,7 @@ function flytordre($kladde_id, $ordre_id) {
 					}
 				}
 				for ($p=1;$p<=$projektantal;$p++) {
-					$query = db_select("select * from ordrelinjer where ordre_id=$id and projekt = '$projekt[$p]';",__FILE__ . " linje " . __LINE__);
+					$query = db_select("select * from ordrelinjer where ordre_id=$id and projekt = '$projekt[$p]'",__FILE__ . " linje " . __LINE__);
 					$y=0;
 					$bogf_konto = array();
 					while ($row = db_fetch_array($query)) {

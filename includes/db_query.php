@@ -1,6 +1,6 @@
 <?php
 
-// ----------includes/db_query.php----lap 3.2.9----2013-02-10--------------
+// ----------includes/db_query.php----lap 3.5.9----2015-10-05--------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,11 +19,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20121222 Tilføjet db_escape_string
 // 2013.02.10 Break ændret til break 1
-
+// 20151005 Funktion injecttjek tjekker om der sker forsøg på at lave sql injektion
 
 if (!function_exists('db_connect')) {
 	function db_connect($l_host, $l_bruger, $l_password, $l_database="", $l_spor="") 
@@ -34,7 +34,7 @@ if (!function_exists('db_connect')) {
 		
 		if ($db_type=='mysql') {
 			if (function_exists('mysql_connect')) {
-				if ($l_host && !$l_bruger && !$l_password) list($l_host,$l_bruger,$l_password)=explode(",",$l_host); 
+				if ($l_host && !$l_bruger && !$l_password) list($l_host,$l_bruger,$l_password)=split(",",$l_host); 
 				$connection = mysql_connect ("$l_host","$l_bruger","$l_password");
 				if ($db_encode=='UTF8') mysql_query("SET NAMES 'utf8'");
 				else mysql_query("SET NAMES 'latin9'");
@@ -97,27 +97,7 @@ if (!function_exists('db_modify')) {
 		if ($db_type=="mysql") $db_query="mysql_query";
 		else $db_query="pg_query";
 		
-		if (strpos($qtext,';')) {
-			$tjek=1;
-			for ($x=0;$x<strlen($qtext);$x++) {
-				if ($tjek==1 && substr($qtext,$x,1)=="'" && substr($qtext,$x-1,1)!="\\") $tjek=0;
-				elseif ($tjek==0 && substr($qtext,$x,1)=="'" && substr($qtext,$x-1,1)!="\\") $tjek=1;
-				if ($tjek && substr($qtext,$x,1)==";") {	
-					$s_id=session_id();
-					$txt="SQL injection registreret!!! - Handling logget & afbrudt.";
-					print "<BODY onLoad=\"javascript:alert('$txt')\">";
-					$fp=fopen("../temp/$db/.ht_modify.log","a");
-					fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s")."\n");
-					fwrite($fp,"-- SQL injection fra ".$_SERVER["REMOTE_ADDR"]." | " .$qtext.";\n");	
-					fclose($fp);
-					$s_id=session_id();
-					include("../includes/connect.php");
-					$db_query("delete from online where session_id = '$s_id'");
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
-					exit;
-				}
-			}
-		}
+		$qtext=injecttjek($qtext);
 		$db=trim($db);
 		if ($db_skriv_id>1) {
 				$fp=fopen("../temp/$db/.ht_modify.log","a");
@@ -125,7 +105,6 @@ if (!function_exists('db_modify')) {
 				fwrite($fp,$qtext.";\n");
 			fclose($fp);
 		}
-		
 		if (!$db_query($qtext)) {
 			if ($db_type=="mysql") $fejltekst=mysql_error();
 			else $fejltekst=pg_last_error();
@@ -162,7 +141,8 @@ if (!function_exists('db_select')) {
 		global $brugernavn;
 		global $db;
 		global $custom_alerttekst;
-	
+		$qtext=injecttjek($qtext);
+		
 		if (!file_exists("../temp/$db")) mkdir("../temp/$db", 0775);
 		if ($db_type=="mysql") $query="mysql_query";
 		else $query="pg_query";
@@ -293,8 +273,37 @@ if (!function_exists('transaktion')) {
 if (!function_exists('db_escape_string')) {
 	function db_escape_string($qtext) {
 		global $db_type;
+		
 		if ($db_type=="mysql") return mysql_real_escape_string($qtext);
 		else return pg_escape_string($qtext);
+	}
+}
+
+if (!function_exists('injecttjek')) {
+	function	injecttjek($qtext) {
+		global $db;
+		if (strpos($qtext,';')) {
+			$tjek=1;
+			for ($x=0;$x<strlen($qtext);$x++) {
+				if ($tjek==1 && substr($qtext,$x,1)=="'" && substr($qtext,$x-1,1)!="\\") $tjek=0;
+				elseif ($tjek==0 && substr($qtext,$x,1)=="'" && substr($qtext,$x-1,1)!="\\") $tjek=1;
+				if ($tjek && substr($qtext,$x,1)==";") {	
+					$s_id=session_id();
+					$txt="SQL injection registreret!!! - Handling logget & afbrudt";
+					print "<BODY onLoad=\"javascript:alert('$txt')\">";
+					$fp=fopen("../temp/$db/.ht_modify.log","a");
+					fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s")."\n");
+					fwrite($fp,"-- SQL injection fra ".$_SERVER["REMOTE_ADDR"]." | " .$qtext.";\n");	
+					fclose($fp);
+					$s_id=session_id();
+					include("../includes/connect.php");
+					$db_query("delete from online where session_id = '$s_id'");
+					print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
+					exit;
+				}
+			} 
+		} 
+		return("$qtext");
 	}
 }
 ?>

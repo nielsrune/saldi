@@ -2,7 +2,7 @@
 	@session_start();
 	$s_id=session_id();
 
-// --------/systemdata/importer_formular.php---lap 3.2.2---2011-06-30--
+// --------/systemdata/importer_formular.php---lap 3.4.9---2015-01-22--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,10 +19,11 @@
 // GNU General Public Licensen for flere detaljer.
 // 
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2011 DANOSOFT ApS
+// Copyright (c) 2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20150122 MAX_FILE_SIZE ændret fra 100000 til 200000
 
 $title="Importer_formularer";
 $css="../css/standard.css";
@@ -64,7 +65,7 @@ if ($_POST) {
 } else {
 	print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<form enctype=\"multipart/form-data\" action=\"importer_formular.php\" method=\"POST\">";
-	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"100000\">";
+	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"200000\">";
 	print "<tr><td width=100% align=center> V&aelig;lg formularfil: <input name=\"uploadedfile\" type=\"file\" /><br /></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td align=center><input type=\"submit\" value=\"Hent\" /></td></tr>";

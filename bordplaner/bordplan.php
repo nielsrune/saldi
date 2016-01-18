@@ -1,5 +1,5 @@
 <?php
-// ------------- bordplaner/bordplan.php -------------- lap 3.4.2--2014.06.13--
+// ------------- bordplaner/bordplan.php ---------- lap 3.4.9----2015.01.10-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
-// ----------------------------------------------------------------------------
+// Copyright (c) 2004-2015 DANOSOFT ApS
+// ----------------------------------------------------------------------
+// 2014.11.11 Bordplan bruges nu også selvom der ikke er individuel bordplan
+// 2015.01.10 Bord sætttes kun som optaget hvis der er et bordnr.
+
 @session_start();
 $s_id=session_id();
 ob_start();
@@ -39,23 +42,56 @@ $r = db_fetch_array(db_select("select box7 from grupper where art = 'POS' and ko
 $flyt=if_isset($_GET['flyt']);
 $id=if_isset($_GET['id']);
 $delflyt=if_isset($_GET['delflyt']);
-
 $optaget=array();
 $x=0;
-$q=db_select("select nr,hvem from ordrer where art = 'PO' and status < 3",__FILE__ . " linje " . __LINE__);
+$q=db_select("select id,nr,hvem from ordrer where art = 'PO' and status < 3",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
-	if ($r['hvem']) {
+	if ($id==$r['id']) $bordnr=$r['nr'];
+	if ($r['hvem'] && is_numeric($r['nr'])) {
 		$optaget[$x]=$r['nr'];
 		$x++;
-	}
+	} 
 }
-	
+if ($flyt || $flyt=='0') print "<b><big>Vælg det bord $bord[$bordnr] skal flyttes til.</big></b><br>"; 
+
+
 $w="17px";
 $h="17px";
 $bg1="ff0000";
 $bg2="00ff00";
 $bg3="0000ff";
-include("bordplan_$db_id.php"); 
+if (file_exists("bordplan_$db_id.php")) include("bordplan_$db_id.php");
+else {
+	$stil="STYLE=\"
+		display: table-cell;
+		moz-border-radius:10px;
+		-webkit-border-radius:10px;
+		width:150px;
+		height:50px;
+		text-align:center;
+		vertical-align:middle;
+		font-size:30px; 
+		border: 1px solid ##BEBCCE;
+		background-color:";
+		
+	print "<table><tbody><tr>";
+	$y=0;
+		for ($x=0;$x<count($bord);$x++) {
+		if ($y==4) {
+			print "</tr><tr>";
+			$y=0;
+		}
+		(in_array($x,$optaget))?$bgcolor=$bg1:$bgcolor=$bg2;
+		$style=$stil."$bgcolor\"";
+		if ($flyt || $flyt=='0') {
+			if ($x!=$flyt && $delflyt) $href="../debitor/pos_ordre.php?id=$id&flyt_til=$x&delflyt=$delflyt";
+			else $href="../debitor/pos_ordre.php?id=$id&flyt_til=$x";
+		} else $href="../debitor/pos_ordre.php?bordnr=$x";
+		print "<td><input type=\"button\" $style onclick=\"window.location.href='$href'\" value=\"$bord[$x]\"></td>\n";
+		$y++;
+	}
+	print "</tr></tbody></table>";
+}
 
 function vis_bord($bordnr,$cs,$rs) {
 global $h;
@@ -74,7 +110,6 @@ $rh=$h*$rs;
 $th=$h;
 if (strpos($bord[$bordnr]," ")) list($tmp,$bordnavn)=explode(" ",$bord[$bordnr]);
 else $bordnavn=$bord[$bordnr];
-
 (in_array($bordnr,$optaget))?$bgcolor=$bg1:$bgcolor=$bg2;
 	if ($flyt || $flyt=='0') {
 	if ($bordnr!=$flyt && $delflyt) print "<td align=\"center\" colspan=\"$cs\" rowspan=\"$rs\"><a style=\"text-decoration:none\" href=\"../debitor/pos_ordre.php?id=$id&flyt_til=$bordnr&delflyt=$delflyt\"><input type=\"button\" style=\"width:$rw;height:$rh;text-align:center;font-size:$th; background-color:$bgcolor;\" value= \"$bordnavn\"></a></td>";

@@ -1,5 +1,5 @@
 <?php
-// ----------finans/importer.php------------patch 3.2.9-----2013.04.15-----------
+// ----------finans/importer.php------------patch 3.4.8-----2015.01.05-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -17,13 +17,13 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2003-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 //
 // 20130415 - Fejl hvis linje starter med separatortegn.
-//
+// 20150105 - Transdate sættes til dd hvis den ikke er sat20150105
 
 @session_start();
 $s_id=session_id();
@@ -482,6 +482,7 @@ function flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $bila
 						$kredit=$felt[$y];
 					} elseif ($feltnavn[$y]=="fakturanr") $fakturanr=addslashes($felt[$y]);
 				}
+				if (!$transdate) $transdate=date('Y-m-d'); #20150105
 				if ($amount*1!=0) {
 #					$debet=$debet*1;$kredit=$kredit*1;
 					$felttext1=NULL;$felttext2=NULL;

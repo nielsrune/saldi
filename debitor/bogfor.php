@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id=session_id();
-// -----------debitor/bogfor.php--------patch 3.2.9----2015.05.06----------
+// -----------debitor/bogfor.php--------patch 3.5.3----2015.03.05----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,11 +18,12 @@ $s_id=session_id();
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // --------------------------------------------------------------------------
 // 2013.05.06 Tilføjet transaktionskontrol.
+// 2015.03.05 Betalinger indsættes nu i POS_betalinger hvis betingelser er opfyldt - søg pos_betalinger
 
 $id=NULL;
 if (isset($_GET['id'])) $id=($_GET['id']);
@@ -47,7 +48,14 @@ if ($id && $id>0) {
 		print "<BODY onLoad=\"javascript:alert('$svar')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordre.php?id=$id\">";
 		exit;
-	} else transaktion('commit'); 
+	} else {
+		$r=db_fetch_array(db_select("select * from ordrer where id = $id",__FILE__ . " linje " . __LINE__));
+		if ($r['felt_1'] && $r['felt_3'] && is_numeric($r['felt_2']) && is_numeric($r['felt_4'])){
+			if ($r['felt_2']*1 != 0) db_modify("insert into pos_betalinger(ordre_id,betalingstype,amount) values ('$id','$r[felt_1]','$r[felt_2]')",__FILE__ . " linje " . __LINE__);
+			if ($r['felt_4']*1 != 0) db_modify("insert into pos_betalinger(ordre_id,betalingstype,amount) values ('$id','$r[felt_3]','$r[felt_4]')",__FILE__ . " linje " . __LINE__);
+		}
+		transaktion('commit');
+	}
 	if (!$genfakt) {
 		if ($pbs) {
 			pbsfakt($id);

@@ -19,6 +19,7 @@
 
 @session_start();
 $s_id=session_id();
+ini_set('upload_max_filesize', '100M');
 
 ?>
 <script LANGUAGE="JavaScript">

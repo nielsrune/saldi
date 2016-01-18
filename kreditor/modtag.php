@@ -1,7 +1,7 @@
 <?php
 	@session_start();
 	$s_id=session_id();
-// -------kreditor/modtag.php-------patch 3.3.3-------2013.10.10-----
+// -------kreditor/modtag.php-------patch 3.4.9-------2015.01.18-----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,13 +18,17 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaetelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
-// 
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 //
 // 2013.08.30 Fejl v. "interne shops" (Rotary) de der blev forsøgt kald til ikke eksisterende url.Søn 20130830
 // 2013.10.01 Opdat_beholdning blev ikke åbnet v. webshop.
+// 20141005 Div i forbindelse med omvendt betalingspligt, samt nogle generelle ændringer således at varereturnering nu bogføres
+//	som negativt køb og ikke som salg.
+// 20141005 Ændret + til - pga fejl ved netagiv modtagelse på samme lev ordre.
+// 20150118 sætter kobsdate hvis ikke sat. Søg kobsdate.
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -145,6 +149,7 @@ if ($fejl==0) {
 			$query = db_select("select * from grupper where art='VG' and kodenr='$gruppe[$x]'",__FILE__ . " linje " . __LINE__);
 			$row = db_fetch_array($query);
 			$box1=trim($row['box1']); $box2=trim($row['box2']); $box3=trim($row['box3']); $box4=trim($row['box4']); $box8=trim($row['box8']); $box9=trim($row['box9']);
+#cho "box8 $box8<br>";
 			if ($box8!='on') { # Dvs varen er IKKE lagerfoert.
 				if (!$box4) {
 					print "<BODY onLoad=\"javascript:alert('Varenr $varenr[$x] (Pos nr: $posnr[$x]) er ikke tilnykttet nogen varegruppe, modtagelse afbrudt')\">";
@@ -170,22 +175,22 @@ if ($fejl==0) {
 					else 	reservation($linje_id[$x], $leveres[$x], $vare_id[$x], $serienr[$x]);
 				} else {
 					db_modify("update ordrelinjer set bogf_konto='$box4' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
-					if ($fifo) {
-						$rest=$leveres[$x]-($leveres[$x]-$beholdning);
-						if ($rest<0) $rest=0;
-						elseif ($rest>$leveres[$x])$rest=$leveres[$x];	
-						db_modify("insert into batch_kob(vare_id,linje_id,kobsdate,ordre_id,antal,rest) values ($vare_id[$x],$linje_id[$x],'$levdate','$id','$leveres[$x]','$rest')",__FILE__ . " linje " . __LINE__);
-					} else {
+#					if ($fifo) {
+#						$rest=$leveres[$x]-($leveres[$x]-$beholdning);
+#						if ($rest<0) $rest=0;
+#						elseif ($rest>$leveres[$x])$rest=$leveres[$x];	
+#cho __LINE__." insert into batch_kob(vare_id,linje_id,kobsdate,ordre_id,antal,rest) values ($vare_id[$x],$linje_id[$x],'$levdate','$id','$leveres[$x]','$leveres[$x]')<br>";
+						db_modify("insert into batch_kob(vare_id,linje_id,kobsdate,ordre_id,antal,rest) values ($vare_id[$x],$linje_id[$x],'$levdate','$id','$leveres[$x]','$leveres[$x]')",__FILE__ . " linje " . __LINE__);
+#					} else {
 					#Pris fjernet fra nedenstaende 06.04.08 - Prisen skal ikke saettes ved modtagelse
-						db_modify("insert into batch_kob(vare_id, linje_id, kobsdate, ordre_id, antal) values ($vare_id[$x],$linje_id[$x],'$levdate','$id','$leveres[$x]')",__FILE__ . " linje " . __LINE__);
-					}
+#cho "insert into batch_kob(vare_id, linje_id, kobsdate, ordre_id, antal,rest) values ($vare_id[$x],$linje_id[$x],'$levdate','$id','$leveres[$x]','$leveres[$x]')<br>";
+#						db_modify("insert into batch_kob(vare_id, linje_id, kobsdate, ordre_id, antal,rest) values ($vare_id[$x],$linje_id[$x],'$levdate','$id','$leveres[$x]','$leveres[$x]')",__FILE__ . " linje " . __LINE__);
+#					}
 				}
 			}
 			db_modify("update ordrelinjer set leveres=0 where id = $linje_id[$x]",__FILE__ . " linje " . __LINE__);
-
 			$r=db_fetch_array(db_select("select box2 from grupper where art = 'DIV' and kodenr = '5' ",__FILE__ . " linje " . __LINE__));
 			$shopurl=trim($r['box2']);
-
 			if (strlen($shopurl)>1) { #20131001
 				$r=db_fetch_array(db_select("select beholdning,publiceret from varer where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__));
 				if ($r['publiceret']) {
@@ -199,20 +204,148 @@ if ($fejl==0) {
 				}
 			}
 		}
-		transaktion("commit");
 	}
-	#	 exit;
+	for ($x=1; $x<=$linjeantal; $x++) {
+		if ($leveres[$x]<0) { #returnering af vare
+#cho __LINE__." L $leveres[$x]<br>";
+#cho __LINE__." select * from batch_kob where ordre_id='$id' and vare_id='$vare_id[$x]' and linje_id='$linje_id[$x]'<br>";
+		$q=db_select("select * from batch_kob where ordre_id='$id' and vare_id='$vare_id[$x]' and linje_id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+			while ($r=db_fetch_array($q)) { 
+				$rest=$r['rest'];	
+#cho  __LINE__." Rest $rest<br>"; 
+				if ($rest) {
+#cho __LINE__." select * from batch_kob where ordre_id='$id' and vare_id='$vare_id[$x]' and rest>'0' and linje_id!='$linje_id[$x]'<br>";
+					$q2=db_select("select * from batch_kob where ordre_id='$id' and vare_id='$vare_id[$x]' and rest>'0' and linje_id!='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+					while ($r2=db_fetch_array($q2)) {
+#cho __LINE__." $r2[rest]+$rest>=0<br>";
+					if ($r2['rest']+$rest>=0){
+							$ny_rest=$r['rest']-$rest; #20141014
+							$rest=0;
+						}	else {
+							$ny_rest=0;
+							$rest=$rest+$r['rest'];
+						}
+#cho __LINE__." update batch_kob set rest='$ny_rest' where id = $r2[id]<br>";
+#cho __LINE__." update batch_kob set rest='$rest' where id = $r[id]<br>";
+						($r2['kobsdate'])?$kobsdate=$r2['kobsdate']:$kobsdate=$levdate; #20150118
+						db_modify("update batch_kob set kobsdate='$kobsdate',rest='$ny_rest' where id = $r2[id]",__FILE__ . " linje " . __LINE__);
+						($r['kobsdate'])?$kobsdate=$r['kobsdate']:$kobsdate=$levdate; #20150118
+						db_modify("update batch_kob set kobsdate='$kobsdate',rest='$rest' where id = $r[id]",__FILE__ . " linje " . __LINE__);
+					}
+				}
+				if ($rest) {
+#cho __LINE__." select * from batch_kob where ordre_id!='$id' and vare_id='$vare_id[$x]' and rest>'0' and linje_id!='$linje_id[$x]'<br>";
+					$q2=db_select("select * from batch_kob where ordre_id!='$id' and vare_id='$vare_id[$x]' and rest>'0' and linje_id!='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+					while ($r2=db_fetch_array($q2)) {
+						if ($rest) {
+#cho __LINE__." $r2[rest]+$rest>=0<br>";
+						if ($r2['rest']+$rest>=0){
+#cho __LINE__." $ny_rest=$r2[rest]+$rest<br>";
+							$ny_rest=$r2['rest']-$rest; #20141014
+							$rest=0;
+							}	else {
+							$ny_rest=0;
+							$rest=$rest+$r2['rest'];
+						}
+#cho __LINE__." update batch_kob set rest='$ny_rest' where id = $r2[id]<br>";
+#cho __LINE__." update batch_kob set rest='$rest' where id = $r[id]<br>";
+						($r2['kobsdate'])?$kobsdate=$r2['kobsdate']:$kobsdate=$levdate; #20150118
+						db_modify("update batch_kob set kobsdate='$kobsdate',rest='$ny_rest' where id = $r2[id]",__FILE__ . " linje " . __LINE__);
+						($r['kobsdate'])?$kobsdate=$r['kobsdate']:$kobsdate=$levdate; #20150118
+						db_modify("update batch_kob set kobsdate='$kobsdate',rest='$rest' where id = $r[id]",__FILE__ . " linje " . __LINE__);
+					}}
+				}
+			}
+		} 
+		elseif ($leveres[$x]>0) { #Modtagelse af vare
+		# finder tidligere modtagelser af samme vare på samme linje i samme ordre.
+		$q=db_select("select * from batch_kob where ordre_id='$id' and vare_id='$vare_id[$x]' and linje_id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+			while ($r=db_fetch_array($q)) { 
+				$rest=$r['rest'];	
+#cho __LINE__." Rest $rest<br>";
+				if ($rest) { #Finder andre linjer i samme ordre med samme vare hvor varen er solgt inden varenodtagelse. 
+					$q2=db_select("select * from batch_kob where ordre_id='$id' and vare_id='$vare_id[$x]' and rest<'0' and linje_id!='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+					while ($r2=db_fetch_array($q2)) {
+						if ($rest+$r2['rest']>=0){
+							$ny_rest=+$rest+$r2['rest'];
+							$rest=0;
+						}	else {
+							$ny_rest=0;
+							$rest=$rest+$r2['rest'];
+						}
+						($r2['kobsdate'])?$kobsdate=$r2['kobsdate']:$kobsdate=$levdate; #20150118
+						db_modify("update batch_kob set kobsdate='$kobsdate',rest='$ny_rest' where id = $r2[id]",__FILE__ . " linje " . __LINE__);
+						($r['kobsdate'])?$kobsdate=$r['kobsdate']:$kobsdate=$levdate; #20150118
+						db_modify("update batch_kob set kobsdate='$kobsdate',rest='$rest' where id = $r[id]",__FILE__ . " linje " . __LINE__);
+					}
+				}
+				if ($rest) {
+#cho __LINE__." Rest $rest<br>";
+					$q2=db_select("select * from batch_kob where antal='0' and ordre_id='0' and vare_id='$vare_id[$x]' and rest<'0' and linje_id!='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+					while ($r2=db_fetch_array($q2)) {
+						if ($rest) {
+#cho __LINE__." $r2[rest]+$rest>=0<br>";
+						if ($r2['rest']+$rest>=0){
+							$ny_rest=0;
+							$ny_antal=abs($r2['rest']);
+#cho __LINE__." $rest=$r[rest]+$rest<br>";
+							$rest=$r2['rest']+$rest;
+#cho __LINE__." $ny_rest : $rest<br>";
+#cho __LINE__." update batch_kob set rest='$ny_rest' where id = $r2[id]<br>";
+#cho __LINE__." update batch_kob set rest='$rest' where id = $r[id]<br>";
+						($r2['kobsdate'])?$kobsdate=$r2['kobsdate']:$kobsdate=$levdate; #20150118
+						db_modify("update batch_kob set kobsdate='$kobsdate',antal='$ny_antal',ordre_id='$id',linje_id='$linje_id[$x]',rest='$ny_rest' where id = $r2[id]",__FILE__ . " linje " . __LINE__);
+						($r['kobsdate'])?$kobsdate=$r['kobsdate']:$kobsdate=$levdate; #20150118
+						db_modify("update batch_kob set kobsdate='$kobsdate',antal=antal-$ny_antal,rest='$rest' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
+						}	
+/*
+						else {
+							$ny_rest=$rest+$r2['rest'];
+							$rest=0;
+						}
+*/						
+					}}
+				}
+				if ($rest) {
+#cho __LINE__." Rest $rest<br>";
+					$q2=db_select("select * from batch_kob where ordre_id!='0' and ordre_id!='$id' and vare_id='$vare_id[$x]' and rest<'0' and linje_id!='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+					while ($r2=db_fetch_array($q2)) {
+						if ($rest) {
+#cho __LINE__." $r2[rest]+$rest>=0<br>";
+							if ($r2['rest']+$rest>=0){
+								$ny_rest=0;
+#cho __LINE__." $rest=$r[rest]+$rest<br>";
+								$rest=$r2['rest']+$rest;
+#cho __LINE__." $ny_rest : $rest<br>";
+							}	else {
+								$ny_rest=$rest+$r2['rest'];
+								$rest=0;
+							}
+#cho __LINE__." update batch_kob set rest='$ny_rest' where id = $r2[id]<br>";
+#cho __LINE__." update batch_kob set rest='$rest' where id = $r[id]<br>";
+							($r2['kobsdate'])?$kobsdate=$r2['kobsdate']:$kobsdate=$levdate; #20150118
+							db_modify("update batch_kob set kobsdate='$kobsdate',rest='$ny_rest' where id = $r2[id]",__FILE__ . " linje " . __LINE__);
+							($r['kobsdate'])?$kobsdate=$r['kobsdate']:$kobsdate=$levdate; #20150118
+							db_modify("update batch_kob set kobsdate='$kobsdate',rest='$rest' where id = $r[id]",__FILE__ . " linje " . __LINE__);
+						}
+					}
+				}
+			}
+		}
+#*/		
+	}
+	transaktion("commit");
+#xit;
 } #endif ($fejl==0);
 
-function reservation($linje_id, $leveres, $vare_id, $serienr)
-{
+function reservation($linje_id, $leveres, $vare_id, $serienr) {
 	global $id;
 	global $levdate;
 	global $lager;
 
 	$res_sum=0;
 	$query = db_select("select antal from reservation where linje_id=$linje_id and batch_salg_id<0",__FILE__ . " linje " . __LINE__);
-	while ($row = db_fetch_array($query)) {$res_sum=$res_sum+$row[antal];} 
+	while ($row = db_fetch_array($query)) {$res_sum=$res_sum+$row['antal'];} 
 	if ($leveres<$res_sum) {
 		print "<BODY onLoad=\"fejltekst('Der er reserveret flere varer end der modtages - foretag proiritering')\">";
 		exit;

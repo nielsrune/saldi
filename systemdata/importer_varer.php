@@ -1,5 +1,5 @@
 <?php
-// ------systemdata/importer_varer.php---lap 3.3.9--2014-01-02--------
+// ------systemdata/importer_varer.php---lap 3.4.3--2014-07-18--------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,7 +21,8 @@
 // Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // tilføjet vejl.pris til import.
-// 2014.02.01 Gjort søgning på eksisterende varenuller case uafhængig 20140201
+// 2014.02.01 Gjort søgning på eksisterende varenumre case uafhængig 20140201
+// 2014.07.18 Alle felter kan nu vælges v.import. Søg 20140718
 
 @session_start();
 $s_id=session_id();
@@ -145,7 +146,10 @@ print "<input type=\"hidden\" name=\"filnavn\" value=$filnavn>";
 print "<input type=\"hidden\" name=\"feltantal\" value=$feltantal>";
 print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"Vis\" />";
 
-$felt_navn=array("varenr","stregkode","beskrivelse","kostpris","salgspris","vejl.pris","notes","enhed","gruppe","leverandor","min_lager","max_lager","lokation");
+#20140718
+$felt_navn=array("varenr","stregkode","beskrivelse","kostpris","salgspris","vejl.pris","notes","enhed","enhed2","forhold","gruppe","provisionsfri","leverandor","min_lager","max_lager","lokation","lukket","serienr","samlevare","delvare","trademark","	retail_price","special_price","	campaign_cost","tier_price","	open_colli_price","colli","	outer_colli","outer_colli_price","special_from_date","special_to_date","	komplementaer","circulate","operation","prisgruppe","tilbudgruppe","	rabatgruppe","dvrg","m_type","m_rabat","m_antal","folgevare","kategori","varianter","publiceret","indhold");
+
+
 $felt_antal=count($felt_navn);
 for ($y=0; $y<=$feltantal; $y++) {
 	for ($x=0; $x<=$felt_antal; $x++) {
@@ -361,11 +365,13 @@ if ($fp) {
 					$tmp=str_replace(",","",$felt[$y]);
 					$tmp=str_replace(".","",$tmp);
 					if ($tmp && !is_numeric($tmp)) $skriv_linje=2;
+					else $felt[$y]=usdecimal($felt[$y]);
 				}
 				if ($feltnavn[$y]=='max_lager')	{
 					$tmp=str_replace(",","",$felt[$y]);
 					$tmp=str_replace(".","",$tmp);
 					if ($tmp && !is_numeric($tmp)) $skriv_linje=2;
+					else $felt[$y]=usdecimal($felt[$y]);
 				}
 				if ($feltnavn[$y]=='gruppe')	{
 					if ($tmp=find_varegrp($felt[$y])) $felt[$y]=$tmp;
@@ -413,7 +419,7 @@ if ($fp) {
 		}
 	}
 }
- fclose($fp);
+fclose($fp);
 transaktion('commit');
 print "</tbody></table>";
 print "</td></tr>";

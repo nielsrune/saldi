@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id=session_id();
-// ------------includes/udlign_openpost.php-------patch 3.4.1----2014-05-27--------
+// ------------includes/udlign_openpost.php-------patch 3.5.8----2015-09-07--------
 // LICENS>
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,9 +18,9 @@ $s_id=session_id();
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.11.06 Kontrol for aktivt regnskabsaar v. bogføring af ørediff Søg 20121106
@@ -34,6 +34,9 @@ $s_id=session_id();
 // 2014.05.05 Fjernet fejmelding og exit og sat bogføringsdato til dd. (PHR Danosoft) Søg 20140505
 // 2014.05.05 Flyttet $dkkamount[$x]=$amount[$x]*$valutakurs[$x]/100; ned under if ($valuta[$x]=='DKK') $valutakurs[$x]=100; (PHR Danosoft) Søg 20140505
 // 2014.05.27 indsat afrund forskellige steder for at undgå differ på 1 øre.(PHR Danosoft) Søg 20140527
+// 2015.03.01 Kontrol for at diff ikke overstiger maxdiff da det er lykkes for sundkiosken at oprette diffposteringer uden årsag 20150311
+// 2015.09.07	Fejl i rettelse fra 20130529. =! rettet til !=.
+
 
 $modulnr=12;
 $kontonr=array();$post_id=array();
@@ -68,6 +71,7 @@ if (isset($_POST['submit'])) {
 	$faktnr=$_POST['faktnr'];
 	$amount=$_POST['amount'];
 	$basisvaluta=$_POST['basisvaluta'];
+	$valuta=$_POST['valuta'];
 	$omregningskurs=$_POST['omregningskurs'];
 	$belob=if_isset($_POST['belob']);
 	if ($belob) $ny_amount = usdecimal($belob);
@@ -84,15 +88,17 @@ if (isset($_POST['submit'])) {
 		$alerttekst="";
 		if (($amount[0]>0 && $amount[0]-$ny_amount>0) || ($amount[0]<0 && $amount[0]-$ny_amount<0)) {
 			if (trim($faktnr[0])) {
-				if ($basisvaluta=!$valuta[0] && $omregningskurs[0]) { #20130529 indsat && $omregningskurs[0]
+				if ($basisvaluta!=$valuta[0] && $omregningskurs[0]) { #20130529 indsat && $omregningskurs[0]
 					$ny_amount=afrund($ny_amount/$omregningskurs[0],2);
 					$amount[0]=afrund($amount[0]/$omregningskurs[0],2);
 				}
 				$tmp=$amount[0]-$ny_amount;
-				if ($r=db_fetch_array(db_select("select * from openpost where id='$post_id[0]'",__FILE__ . " linje " . __LINE__))) { 
-					if ($r['forfaldsdate']) $qtxt="insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,udlign_id,valuta,valutakurs,bilag_id,forfaldsdate) values ('$r[konto_id]','$r[konto_nr]','','$tmp','$r[refnr]','$r[beskrivelse]','0','$r[transdate]','$r[kladde_id]','0','$r[valuta]','$r[valutakurs]','$r[bilag_id]','$r[forfaldsdate]')";
-					else $qtxt="insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,udlign_id,valuta,valutakurs,bilag_id) values ('$r[konto_id]','$r[konto_nr]','','$tmp','$r[refnr]','$r[beskrivelse]','0','$r[transdate]','$r[kladde_id]','0','$r[valuta]','$r[valutakurs]','$r[bilag_id]')"; #20130525
+				if ($r=db_fetch_array(db_select("select * from openpost where id='$post_id[0]'",__FILE__ . " linje " . __LINE__))) {
+					$r['bilag_id']*=1; 
+					if ($r['forfaldsdate']) $qtxt="insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,udlign_id,valuta,valutakurs,bilag_id,projekt,forfaldsdate) values ('$r[konto_id]','$r[konto_nr]','','$tmp','$r[refnr]','$r[beskrivelse]','0','$r[transdate]','$r[kladde_id]','0','$r[valuta]','$r[valutakurs]','$r[bilag_id]','$r[projekt]','$r[forfaldsdate]')";
+					else $qtxt="insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,udlign_id,valuta,valutakurs,bilag_id,projekt) values ('$r[konto_id]','$r[konto_nr]','','$tmp','$r[refnr]','$r[beskrivelse]','0','$r[transdate]','$r[kladde_id]','0','$r[valuta]','$r[valutakurs]','$r[bilag_id]','$r[projekt]')"; #20130525
 					db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
+					$qtxt="update openpost set amount='$ny_amount' where id = '$post_id[0]'<br>";
 					db_modify ("update openpost set amount='$ny_amount' where id = '$post_id[0]'",__FILE__ . " linje " . __LINE__);
 				} else $alerttekst="Fakturanummer ikke gyldigt, postering ikke opsplittet";
 			}	else $alerttekst="For at opsplitte en betaling skal posteringen tilknyttes et gyldigt fakturanummer";
@@ -148,7 +154,9 @@ $basiskurs=str_replace(",",".",$r2['box2']); #Valutaen kan være i dansk talform
 if ($basisvaluta=='DKK') $basiskurs=100; 
 if ($basisvaluta != $valuta[0]) {
 	if ($valuta[0]=='DKK') {
-		$r2 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$basisvaluta' and art='VK'",__FILE__ . " linje " . __LINE__));
+		$qtxt="select kodenr from grupper where box1 = '$basisvaluta' and art='VK'<br>";
+		$r2=db_fetch_array(db_select("select kodenr from grupper where box1 = '$basisvaluta' and art='VK'",__FILE__ . " linje " . __LINE__));
+		$qtxt="select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[0]' order by valdate<br>";
 		$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[0]' order by valdate",__FILE__ . " linje " . __LINE__));
 			$omregningskurs[0]=100/$r3['kurs'];
 			$amount[0]=afrund($amount[0]*$omregningskurs[0],2); #20140527
@@ -161,6 +169,7 @@ if ($basisvaluta != $valuta[0]) {
 		$amount[0]*=$valutakurs[0]/$dagskurs;
 		$dkkamount[0]=$amount[0]*$valutakurs[0]/100;
 	} elseif ($basisvaluta=='DKK') {
+		$omregningskurs[0]=$valutakurs[0]/100;
 		$amount[0]=$dkkamount[0];
 		$sum=$amount[0];
 	} else {
@@ -300,42 +309,50 @@ if (isset($submit) && $submit=='udlign') {
 			$bogf_besk.=" Udligning af valutadiff, ($valuta[$x] ".dkdecimal($diff).", DKK ".dkdecimal($dkkdiff).")";
 		}
 		if (abs($dkkdiff)>$maxdiff && $valuta[$x]!='DKK') { #20131129
-		$message=$db." | udlign_openpost | ".$brugernavn." ".date("Y-m-d H:i:s")." | Diff: $diff DKKdiff: $dkkdiff Maxdiff $maxdiff";
+			$message=$db." | udlign_openpost | ".$brugernavn." ".date("Y-m-d H:i:s")." | Diff: $diff DKKdiff: $dkkdiff Maxdiff $maxdiff";
 			$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 			mail('fejl@saldi.dk', 'SALDI Opdat fejl', $message, $headers);
-			print "<BODY onLoad=\"javascript:alert('Diferencen overstiger det maksimalt tilladte')\">"; #20131129
+			print "<BODY onLoad=\"javascript:alert('Differencen overstiger det maksimalt tilladte')\">"; #20131129
 			exit;
 		}
-		if ($dkkdiff >= 0.01) {
-			db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values('$diffkto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
- 			db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
-			if ($diff) {
-				$vkurs=abs($dkkdiff/$diff*100);
-				$tmp=$dkkdiff/$vkurs*100;
-				if ($diff>0) $tmp*=-1;
-				else $vkurs*=-1;
-				db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values 
-				('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
-			}	else {
-				$vkurs=$dkkdiff/0.001*100;
-				$tmp=$dkkdiff/$vkurs*100;
-				if ($diff<=0)$tmp*=-1;
-				db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values 
-				('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
+		if (abs($diff)<$maxdiff) { #20150311
+			if ($dkkdiff >= 0.01) {
+				db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values('$diffkto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
+				if ($diff) {
+					$vkurs=abs($dkkdiff/$diff*100);
+					$tmp=$dkkdiff/$vkurs*100;
+					if ($diff>0) $tmp*=-1;
+					else $vkurs*=-1;
+					db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values 
+					('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
+				}	else {
+					$vkurs=$dkkdiff/0.001*100;
+					$tmp=$dkkdiff/$vkurs*100;
+					if ($diff<=0)$tmp*=-1;
+					db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values 
+					('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
+				}
+			} elseif ($dkkdiff <= -0.01) {
+				$dkkdiff=$dkkdiff*-1;
+				db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values($diffkto, '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
+				if ($diff) {
+					$tmp=$diff*-1;
+					db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values ('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$basiskurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
+				} else {
+					$vkurs=$dkkdiff/0.001*100;
+					$tmp=$dkkdiff/$vkurs*-100;
+					db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values 
+					('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
+				}
 			}
-		} elseif ($dkkdiff <= -0.01) {
-			$dkkdiff=$dkkdiff*-1;
-			db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values($diffkto, '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
-			db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
-			if ($diff) {
-				$tmp=$diff*-1;
-				db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values ('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$basiskurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
-			} else {
-				$vkurs=$dkkdiff/0.001*100;
-				$tmp=$dkkdiff/$vkurs*-100;
-				db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values 
-				('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
-			}
+		} else { #20150311
+			$message=$db." | udlign_openpost | ".$brugernavn." ".date("Y-m-d H:i:s")." | Diff: $diff DKKdiff: $dkkdiff Maxdiff $maxdiff";
+			$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
+			mail('fejl@saldi.dk', 'SALDI Opdat fejl', $message, $headers);
+			print "<BODY onLoad=\"javascript:alert('Det er konstateret en posteringsdifference, udligning afbrudt')\">";
+			exit;
 		}
 	}
 	for ($x=0; $x<=$postantal; $x++) {
@@ -425,6 +442,8 @@ print "<input type = hidden name=diff value=$diff>";
 print "<input type = hidden name=dkkdiff value=$dkkdiff>";
 print "<input type = hidden name=maxdiff value=$maxdiff>";
 print "<input type = hidden name=diffkto value=$diffkto>";
+print "<input type = hidden name=valuta[0] value=$valuta[0]>";
+print "<input type = hidden name=basisvaluta value=$basisvaluta>";
 print "<tr><td colspan=10 align=center>";
 
 $onclick='';

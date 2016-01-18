@@ -29,44 +29,8 @@ $modulnr=9;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
+include("../includes/stykliste.php");
 $id=if_isset($_GET['id']);
-$x=0;
-$query = db_select("select * from styklister where indgaar_i='$id' order by posnr");
-while ($row = db_fetch_array($query)) {
-  $x++;
-  $vare_id[$x]=$row['vare_id'];
-  $antal[$x]=$row['antal'];
-  $posnr[$x]=$row['posnr'];
-}
-$vareantal=$x;
+stykliste($id, 'udskriv', '');
 
-$query = db_select("select varenr, beskrivelse from varer where id=$id");
-$row = db_fetch_array($query);
-
-print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\" width=80% align=center><tbody>";
-print "<tr><td colspan=6 align=center><big><b>Stykliste for <a href=varekort.php?id=$id>".htmlentities($row['varenr'],ENT_COMPAT,$charset)."</a></b></big></td></tr>";
-print "<tr><td align=center> Varenr:</td><td align=center> Beskrivelse</td><td align=center> Kostpris</td><td align=center> Antal</td><td align=center> Sum</td></tr>";
-
-for ($x=1; $x<=$vareantal; $x++) {
-  $query = db_select("select * from varer where id=$vare_id[$x]");
-  $row = db_fetch_array($query);
-  $query2 = db_select("select kostpris from vare_lev where vare_id=$row[id] order by posnr");
-  if ($row2 = db_fetch_array($query2)) {
-    $sum=$row2['kostpris']*$antal[$x];
-    $ialt=$ialt+$sum;
-    $pris=dkdecimal($row2['kostpris']);
-  } else {
-    $query2 = db_select("select kostpris from varer where id=$row[id]");
-    $row2 = db_fetch_array($query2);
-    $sum=$row2['kostpris']*$antal[$x];
-    $ialt=$ialt+$sum;
-    $pris=dkdecimal($row2['kostpris']);
-  }
-  $sum=dkdecimal($sum);
-  print "<tr><td>".htmlentities($row['varenr'],ENT_COMPAT,$charset)."</td><td>".htmlentities($row['beskrivelse'],ENT_COMPAT,$charset)."</td><td align=right> $pris</td><td align=right> $antal[$x]</td><td align=right> $sum</td></tr>";
-}
-$ialt=dkdecimal($ialt);
-print "<tr><td colspan=5><br></td></tr><tr><td colspan=4> I alt</td></td><td align=right> $ialt</td></tr>";
-print "<tbody></table>";
 ?>

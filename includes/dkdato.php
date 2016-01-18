@@ -20,7 +20,7 @@ if (!function_exists('dkdato'))
 {
   function dkdato($dato)
   {
-    list ($year, $month, $day) = explode('-', $dato);
+    list ($year, $month, $day) = split ('-', $dato);
 #  $year=substr($year,-2,2);
     $month=$month*1;
     $day=$day*1;

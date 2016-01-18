@@ -1,5 +1,5 @@
 <?php
-// ------------- debitor/debitorkort.php ------ lap 3.4.1 ----2014-05-07-----------
+// ------------- debitor/debitorkort.php ------ lap 3.5.0 ----2015-01-23-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,13 +18,14 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2003-2014 DANOSOFT ApS
+// Copyright (c) 2003-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.10.23, ID slettes fra pbs_kunder hvis pbs ikke afmærket, søg 20121023
 // 2012.10.24, Annulleret ændringer fra 2012.10.23 !!
 // 2013.10.04, Indsat ENT_COMPAT,$charset); Søg 20131004
 // 2014.05.07, Indsat db_escabe_string #20140507
+// 2015.01.23 Indhente virksomhedsdata fra CVR via CVRapi - tak Niels Rune https://github.com/nielsrune
 
 @session_start();
 $s_id=session_id();
@@ -449,10 +450,39 @@ if ($id > 0){
 	$r=db_fetch_array(db_select("select count(kontotype) as erhverv from adresser where kontotype = 'erhverv'",__FILE__ . " linje " . __LINE__));
 	$erhverv=$r['erhverv'];
 	($privat>$erhverv)?$kontotype="privat":$kontotype="erhverv";
+	$x=0;	
+	$bb=array();
+	$q=db_select("select distinct(betalingsbet) as betalingsbet from adresser",__FILE__ . " linje " . __LINE__);
+	while ($r=db_fetch_array($q)){
+		$bb[$x]=$r['betalingsbet'];
+		$x++;
+	}
+	$maxbb='Netto';
+	for ($x=0;$x<count($bb);$x++) {
+		$r=db_fetch_array(db_select("select count(betalingsbet) as betalingsbet from adresser where  art='D' and betalingsbet = '$bb[$x]'",__FILE__ . " linje " . __LINE__));
+		$betbet[$x]=$r['betalingsbet'];
+		if ($x && $betbet[$x]>$betbet[$x-1]) $maxbb=$bb[$x];
+	}
+	$bb=NULL;
+	$x=0; $bd=array();
+	$q=db_select("select distinct(betalingsdage) as betalingsdage from adresser",__FILE__ . " linje " . __LINE__);
+	while ($r=db_fetch_array($q)){
+		$bd[$x]=$r['betalingsdage'];
+		$x++;
+	}
+	if ($maxbb!='Kontant' && $maxbb!='Forud') {
+		$maxbd=8;
+		for ($x=0;$x<count($bd);$x++) {
+			$r=db_fetch_array(db_select("select count(betalingsdage) as betalingsdage from adresser where art='D' and betalingsdage = '$bd[$x]'",__FILE__ . " linje " . __LINE__));
+			$betdag[$x]=$r['betalingsdage'];
+			if ($x && $betdag[$x]>$betdag[$x-1]) $maxbd=$bd[$x];
+		}
+	} else $maxbd=0;
+	$bd=NULL; $x=NULL;
  	$id=0;
- 	$betalingsdage=8;
- 	$betalingsbet="Netto";
-	$kontoansvarlig='0';
+ 	$betalingsbet=$maxbb;
+ 	$betalingsdage=$maxbd;
+ 	$kontoansvarlig='0';
 	if (isset($_GET['kontonr'])) $kontonr=$_GET['kontonr'];
 	if (isset($_GET['firmanavn'])) $firmanavn=$_GET['firmanavn'];
 	if (isset($_GET['addr1'])) $addr1=$_GET['addr1'];
@@ -547,7 +577,7 @@ print "</select></td>\n";
 print "<td align=right>".findtekst(355,$sprog_id)."<!--tekst 355--><input class=\"inputbox\" type=\"checkbox\" name=\"vis_lev_addr\" $vis_lev_addr></td></tr>\n";
 print "<tr><td valign=top height=250px><table border=0 width=100%><tbody>"; # TABEL 1.2.1 ->
 $bg=$bgcolor5;
-print "<tr bgcolor=$bg><td>".findtekst(357,$sprog_id)."<!--tekst 357--></td><td><input class=\"inputbox\" type=text size=25 name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst(357,$sprog_id)."<!--tekst 357--></td><td><input class=\"inputbox\" type=text size=25 name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 if ($kontotype=='privat') {
 	print "<input type=\"hidden\" name=\"firmanavn\" value=\"$firmanavn\">\n";
 	($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
@@ -634,9 +664,9 @@ if ($drg=$x) {
 print "</tbody></table></td>"; # <- TABEL 1.2.1
 print "<td valign=top><table border=0 width=100%><tbody>"; # TABEL 1.2.2 ->
 $bg=$bgcolor5;
-print "<tr bgcolor=$bg><td>".findtekst(376,$sprog_id)."<!--tekst 376--></td><td><input class=\"inputbox\" type=text size=10 name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst(376,$sprog_id)."<!--tekst 376--></td><td><input class=\"inputbox\" type=text size=10 name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(377,$sprog_id)."<!--tekst 377--></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst(377,$sprog_id)."<!--tekst 377--></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td>".findtekst(378,$sprog_id)."<!--tekst 378--></td><td><input class=\"inputbox\" type=text size=10 name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype=='erhverv') {
@@ -864,5 +894,6 @@ function split_navn($firmanavn) {
 	return ($fornavn.",".$efternavn);
 }
 
+print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
 ?>
 </body></html>

@@ -40,7 +40,7 @@ $year=date("y");
 $tmp=$year-1;
 if ($tmp<10) $tmp="0".$tmp;
 if (!$periode) $periode = "$day"."$month"."$tmp".":"."$day"."$month"."$year";	
-list($fra,$til)=explode(":",$periode);
+list($fra,$til)=split(":",$periode);
 if (!$til) $til=date("dmY");
 $from=usdate($fra);
 $to=usdate($til);
@@ -85,3 +85,18 @@ if ($ret) {
 }
 ?>
 
+uradate>='$from' and fakturadate<='$to' group by konto_id order by sum(sum) desc",__FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$x++;
+		if ($x<=100) {
+			$sum=dkdecimal($r['totalsum']);
+			$r2=db_fetch_array(db_select("select * from adresser where id='$r[konto_id]'",__FILE__ . " linje " . __LINE__));
+			if ((!isset($linjebg))||($linjebg!=$bgcolor)) {$linjebg=$bgcolor; $color='#000000';}
+			else {$linjebg=$bgcolor5; $color='#000000';}
+			print "<tr bgcolor=\"$linjebg\"><td>$x</td>";
+			print "<td>$r2[kontonr]</td><td>$r2[firmanavn]</td><td align=right>$sum</td></tr>\n";
+		}
+	}
+	  print "</tbody></table>";
+}
+?>

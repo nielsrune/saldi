@@ -1,29 +1,30 @@
 <?php
-// ------------debitor/import.php------- patch 3.2.9---2013-05-16------
+// ------------debitor/import.php------- patch 3.5.8---20135-09-04------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg
+// af denne licens eller en senere version efter eget valg.
 // Fra og med version 3.2.2 dog under iagttagelse af følgende:
 // 
 // Programmet må ikke uden forudgående skriftlig aftale anvendes
 // i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
-//
-// Dette program er udgivet med haab om at det vil vaere til gavn,
+// 
+// Programmet er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
 // GNU General Public Licensen for flere detaljer.
-//
+// 
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2003-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012-08-22 Tilrettet til leverandørservice
 // 2012-10-24 Søg #20121024
 // 2013-05-16 Afmelding af leverandørservice#20130516
+// 2015.09.04 Viser kundenavn og viser også detaljer selvom der hverken er til eller framelding.
 
 @session_start();
 $s_id=session_id();
@@ -51,13 +52,14 @@ if(($_GET)||($_POST)) {
 	print "<td width=\"10%\" $top_bund ><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><br></td>";
 	print "</tbody></table>";
 	print "</td></tr>";
-
+	print "<tr><td align=\"center\"><table border=\"1\"><tbody>";
 	$r=db_fetch_array(db_select("select art,pbs_nr,pbs from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
 	$lev_pbs_nr=$r['pbs_nr'];
 	$lev_pbs=$r['pbs'];
 	if ($lev_pbs) $udskriv_til="PBS_FI";
 	else $udskriv_til="PBS_BS";
-	if (!$lev_pbs_nr) print  "PBS nr mangler i stamdata (Indstillinger -> Stamdata)<br>";
+	$udskriv_til="PBS";
+	if (!$lev_pbs_nr) print  "<tr><td>PBS nr mangler i stamdata (Indstillinger -> Stamdata)</td></tr>";
 	if (basename($_FILES['uploadedfile']['name'])) {
 		$filnavn="../temp/".$db."_".$bruger_id.".pbs";
 		if(move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $filnavn)) {
@@ -65,7 +67,7 @@ if(($_GET)||($_POST)) {
 			$fp=fopen("$filnavn","r");
 			if ($fp) {
 				$linjenr=0;
-				print  "<tr><td width=100% align=center>";
+				print  "<tr><td><b>Kundenr</b></td><td><b>Navn</b></td><td><b>PBS nr</b></td><td><b>Handling</b></td></tr>";
 				while ($linje=fgets($fp)) {
 					$linjenr++;
 					if ($lev_pbs=='L') {
@@ -75,21 +77,21 @@ if(($_GET)||($_POST)) {
 							$pbsnr[$x]=99999;
 							
 							if ($r=db_fetch_array(db_select("select firmanavn,id from adresser where art = 'D' and kontonr='$kundenr[$x]'",__FILE__ . " linje " . __LINE__))) {
-								print  "Kundenr: $kundenr[$x], ".$r['firmanavn']." - Stamkort opdateret<br>";
+								print  "<tr><td>$kundenr[$x]</td><td>".$r['firmanavn']."</td><td>$pbsnr[$x]</td><td>Stamkort opdateret</td></tr>";
 								db_modify("update adresser set pbs='on',pbs_nr='$pbsnr[$x]' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
 								db_modify("insert into pbs_kunder(konto_id,kontonr,pbs_nr) values ('$r[id]','$kundenr[$x]','$pbsnr[$x]')",__FILE__ . " linje " . __LINE__); #20121024
 								if ($udskriv_til) db_modify("update ordrer set pbs='FI',udskriv_til='$udskriv_til' where kontonr = '$kundenr[$x]' and art = 'DO' and nextfakt >= '$dd'",__FILE__ . " linje " . __LINE__);
-							} else print  "Kundenr: $kundenr[$x] eksisterer ikke<br>";
+							} else print "<tr><td>$kundenr[$x]</td><td colspan=\"3\">eksisterer ikke</td></tr>";
 						} elseif (substr($linje,0,3)=='540') { #20130516
 							$x++;
 							$kundenr[$x]=substr($linje,8,15)*1;
 							$pbsnr[$x]=NULL;
 							if ($r=db_fetch_array(db_select("select firmanavn,id from adresser where art = 'D' and kontonr='$kundenr[$x]'",__FILE__ . " linje " . __LINE__))) {
-								print  "Kundenr: $kundenr[$x], ".$r['firmanavn']." - Afmeldt fra NETS (PBS)<br>";
+								print  "<tr><td>$kundenr[$x]</td><td>".$r['firmanavn']."</td><td>$pbsnr[$x]</td><td>Afmeldt fra NETS (PBS)</td></tr>";
 								db_modify("update adresser set pbs=NULL,pbs_nr='$pbsnr[$x]' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
 								db_modify("delete from pbs_kunder where id='$r[id]'",__FILE__ . " linje " . __LINE__); #20121024
 								if ($udskriv_til) db_modify("update ordrer set pbs=NULL,udskriv_til='PDF' where kontonr = '$kundenr[$x]' and art = 'DO' and nextfakt >= '$dd'",__FILE__ . " linje " . __LINE__);
-							} else print  "Kundenr: $kundenr[$x] eksisterer ikke<br>";
+							} else print "<tr><td>$kundenr[$x]</td><td colspan=\"3\">eksisterer ikke</td></tr>";
 						} 					
 					} else {
 						if ($linjenr==1 && substr($linje,16,4)!='0603') {
@@ -111,16 +113,21 @@ if(($_GET)||($_POST)) {
 									$kundenr[$x]=substr($linje,25,15)*1;
 									$pbsnr[$x]=substr($linje,40,9);
 									$tilfra[$x]=substr($linje,13,4); 
+									$r=db_fetch_array(db_select("select firmanavn from adresser where kontonr='$kundenr[$x]'",__FILE__ . " linje " . __LINE__));
+									$firmanavn[$x]=$r['firmanavn'];
 									if ($tilfra[$x]=='0231') {	
-										print  "Kundenr: $kundenr[$x] | pbs_nr $pbsnr[$x] -Tilmeldt - Stamkort opdateret<br>";
+										print  "<tr><td>$kundenr[$x]</td><td>$firmanavn</td><td>$pbsnr[$x]</td><td>Tilmeldt - Stamkort opdateret</td></tr>";
 										db_modify("update adresser set pbs='on',pbs_nr='$pbsnr[$x]' where kontonr = '$kundenr[$x]' and art = 'D'",__FILE__ . " linje " . __LINE__);
 										if ($udskriv_til) db_modify("update ordrer set pbs='FI',udskriv_til='$udskriv_til' where kontonr = '$kundenr[$x]' and art = 'DO' and nextfakt >= '$dd'",__FILE__ . " linje " . __LINE__);
-									} if ($tilfra[$x]=='0232' || $tilfra[$x]=='0233' || $tilfra[$x]=='0234') {
-										if ($tilfra[$x]=='0232') print  "Kundenr: $kundenr[$x] | pbs_nr $pbsnr[$x] -Afmeldt af debitors pengeinstitut - Stamkort opdateret<br>";
-										if ($tilfra[$x]=='0233') print  "Kundenr: $kundenr[$x] | pbs_nr $pbsnr[$x] -Afmeldt af kreditor pengeinstitut - Stamkort opdateret<br>";
-										if ($tilfra[$x]=='0234') print  "Kundenr: $kundenr[$x] | pbs_nr $pbsnr[$x] -Afmeldt af PBS - Stamkort opdateret<br>";
+									} elseif ($tilfra[$x]=='0232' || $tilfra[$x]=='0233' || $tilfra[$x]=='0234') {
+										if ($tilfra[$x]=='0232') print "<tr><td>$kundenr[$x]</td><td>$firmanavn[$x]</td><td>$pbsnr[$x]</td><td>Afmeldt af debitors pengeinstitut - Stamkort opdateret</td></tr>";
+										if ($tilfra[$x]=='0233') print "<tr><td>$kundenr[$x]</td><td>$firmanavn[$x]</td><td>$pbsnr[$x]</td><td>Afmeldt af kreditor pengeinstitut - Stamkort opdateret</td></tr>";
+										if ($tilfra[$x]=='0234') print "<tr><td>$kundenr[$x]</td><td>$firmanavn[$x]</td><td>$pbsnr[$x]</td><td>Afmeldt af PBS - Stamkort opdateret</td></tr>";
 										db_modify("update adresser set pbs='',pbs_nr='' where kontonr = '$kundenr[$x]' and art = 'D'",__FILE__ . " linje " . __LINE__);
 										db_modify("update ordrer set pbs='',udskriv_til='email' where kontonr = '$kundenr[$x]' and art = 'DO' and nextfakt >= '$dd'",__FILE__ . " linje " . __LINE__);
+									} else { #20150904
+										if ($firmanavn[$x]) print  "<tr><td>$kundenr[$x]</td><td>$firmanavn[$x]</td><td>$pbsnr[$x]</td><td>Ingen handling</td></tr>";
+										else print  "<tr><td>$kundenr[$x]</td><td colspan=\"3\">Ikke fundet i adresseliste</td></tr>";
 									}
 									
 								}
@@ -129,6 +136,7 @@ if(($_GET)||($_POST)) {
 					}
 					}
 				}
+				print "</tbody></table>";
 				print  "</td></tr>";
 			}
 		}

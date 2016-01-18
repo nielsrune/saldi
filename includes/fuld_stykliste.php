@@ -76,13 +76,16 @@ if (!function_exists('fuld_stykliste')) {
 	$vare_id=array(); $antal=array(); # Tmmer arrays 
 	$x=0;
 	for ($a=1; $a<=$b; $a++) {
-		if ($udvalg=='grundvare') $query = db_select("select * from varer where id='$v_id[$a]' and samlevare!='on'",__FILE__ . " linje " . __LINE__); 
-		else $query = db_select("select * from varer where id='$v_id[$a]'",__FILE__ . " linje " . __LINE__); 
+		if ($udvalg=='grundvare') $qtxt = "select * from varer where id='$v_id[$a]' and samlevare!='on'"; 
+		else $qtxt = "select * from varer where id='$v_id[$a]'"; 
+echo "$qtxt<br>";
+		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__); 
 		$row = db_fetch_array($query);
 		$varenr[$a]=htmlentities(stripslashes($row['varenr']),ENT_COMPAT,$charset);
 		$beskrivelse[$a]=htmlentities(stripslashes($row['beskrivelse']),ENT_COMPAT,$charset);
 		if ($row[samlevare]!='on') {
-			$sum=$row[kostpris]*$v_antal[$a];
+			$sum=$row['kostpris']*$v_antal[$a];
+echo "sum $sum V $v_antal[$a]<br>";
 			$ialt=$ialt+$sum;
 			$x++;
 			$vare_id[$x]=$row['id'];
@@ -100,6 +103,7 @@ if (!function_exists('fuld_stykliste')) {
 		print "<tbody></table>";
 	}
 	$ialt=$ialt*1;
+echo "update varer set kostpris=$ialt where id='$id'<br>";
 	db_modify("update varer set kostpris=$ialt where id='$id'",__FILE__ . " linje " . __LINE__);
 	if (!$udvalg) return $ialt;
 	else return array($vare_id, $antal, $x);

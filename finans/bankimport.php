@@ -1,24 +1,24 @@
 <?php
-// ----------finans/bankimport.php------------patch 3.3.9------2014.02.03-----------
+// ----------finans/bankimport.php------------patch 3.5.9------2015.09.04-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg
+// af denne licens eller en senere version efter eget valg.
 // Fra og med version 3.2.2 dog under iagttagelse af følgende:
 // 
 // Programmet må ikke uden forudgående skriftlig aftale anvendes
 // i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
-//
-// Dette program er udgivet med haab om at det vil vaere til gavn,
+// 
+// Programmet er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
 // GNU General Public Licensen for flere detaljer.
-//
+// 
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2014 DANOSOFT ApS
+// Copyright (c) 2003-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.11.10 Indsat mulighed for valutavalg ved import - søg: valuta
@@ -28,6 +28,12 @@
 // 2014.01.17 Genkendelse af FI indbetalinger fra Sparekasserne. Søg Sparekasserne
 // 2014.01.27 Genkendelse af FI indbetalinger fra Nordea. Søg Nordea
 // 2014.02.03 Genkendelse af danske månedforkortelser i datoer. Søg 20140203
+// 2014.07.08 Genkendelse af dankort betalinger 20140708
+// 2014.10.05 Indsat "auto_detect_line_endings", eller kan den ikke altid genkende filer genereret på MAC 
+// 2015.09.04 Genkendelse af dankort krediteringer 20150904
+
+
+ini_set("auto_detect_line_endings", true);
 
 @session_start();
 $s_id=session_id();
@@ -350,6 +356,7 @@ if ($fp) {
 					$felt[$y]=str_replace(".","-",$felt[$y]);
 				}
 				if ($feltnavn[$y]=='belob') {
+					$felt[$y]=str_replace(" ","",$felt[$y]);
 					if (nummertjek($felt[$y])=='US') {
 						if ($felt[$y]==0) $skriv_linje=0;
 						else $felt[$y]=dkdecimal($felt[$y]);
@@ -451,6 +458,7 @@ function flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $kont
 						$felt[$y]=str_replace(".","-",$felt[$y]);
 					}
 					if ($feltnavn[$y]=='belob') {
+						$felt[$y]=str_replace(" ","",$felt[$y]);
 						if (nummertjek($felt[$y])=='US') $felt[$y]=dkdecimal($felt[$y]);
 						elseif (nummertjek($felt[$y])!='DK') $skriv_linje=0;		
 					}
@@ -480,6 +488,12 @@ function flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $kont
 						$kredit=substr($beskrivelse,22,7)*1;
 						$faktura=substr($beskrivelse,29,5)*1;
 						$k_type='D';
+					} elseif (strlen($beskrivelse)==30 && substr($beskrivelse,0,2)=='DK' && is_numeric(substr($beskrivelse,4,7)) && is_numeric(substr($beskrivelse,12,9)) && is_numeric(substr($beskrivelse,25,5))) { # Dankort betaling 20140708 
+						$betalings_id="%".substr($beskrivelse,12,9);
+						$r=db_fetch_array(db_select("select fakturanr,kontonr from ordrer where betalings_id LIKE '$betalings_id' and sum = '$amount'",__FILE__ . " linje " . __LINE__));
+						$faktura=$r['fakturanr'];
+						$kredit=$r['kontonr']*1;
+						$k_type='D';
 					} elseif (substr($beskrivelse,0,6)=='DKSSL ') { #20131119
 						list($a,$b,$c)=explode(" ",$beskrivelse);
 						$ordrenr=substr($c,7)*1;
@@ -497,13 +511,23 @@ function flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $kont
 						$faktura='';
 						$k_type='';
 					}
-#echo "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, amount, kladde_id) values ('$bilag', '$transdate', '$beskrivelse', 'F', '$kontonr', '$amount', '$kladde_id')<br>";
+#cho "insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta) values ('$bilag','$transdate','$beskrivelse','F','$kontonr','$k_type','$kredit','$faktura','$amount','$kladde_id','$valutakode')<br>";
 					db_modify("insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta) values ('$bilag','$transdate','$beskrivelse','F','$kontonr','$k_type','$kredit','$faktura','$amount','$kladde_id','$valutakode')",__FILE__ . " linje " . __LINE__);
 					$bilag++;
 				} elseif ($amount<0) {
 					$amount=$amount*-1;
-#echo "insert into kassekladde (bilag, transdate, beskrivelse, k_type, kredit, amount, kladde_id) values ('$bilag', '$transdate', '$beskrivelse', 'F', '$kontonr', '$amount', '$kladde_id')<br>";
-					db_modify("insert into kassekladde (bilag, transdate, beskrivelse, k_type, kredit, amount, kladde_id,valuta) values ('$bilag', '$transdate', '$beskrivelse', 'F', '$kontonr', '$amount', '$kladde_id','$valutakode')",__FILE__ . " linje " . __LINE__);
+					if (strlen($beskrivelse)==30 && substr($beskrivelse,0,2)=='DK' && is_numeric(substr($beskrivelse,4,7)) && is_numeric(substr($beskrivelse,12,9)) && is_numeric(substr($beskrivelse,25,5))) { # Dankort betaling 20150904 
+						$betalings_id="%".substr($beskrivelse,12,9);
+						$r=db_fetch_array(db_select("select fakturanr,kontonr from ordrer where betalings_id LIKE '$betalings_id' and sum = '$amount'",__FILE__ . " linje " . __LINE__));
+						$faktura=$r['fakturanr'];
+						$debet=$r['kontonr']*1;
+						$d_type='D';
+					} else {
+					$dtype='F';
+					$debet=0;
+#cho "insert into kassekladde (bilag, transdate, beskrivelse, k_type, kredit, amount, kladde_id) values ('$bilag', '$transdate', '$beskrivelse', 'F', '$kontonr', '$amount', '$kladde_id')<br>";
+					db_modify("insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,amount,kladde_id,valuta) values ('$bilag','$transdate','$beskrivelse','$d_type','$debet','F','$kontonr','$amount','$kladde_id','$valutakode')",__FILE__ . " linje " . __LINE__);
+					}
 					$bilag++;
 				}
 			}
@@ -512,6 +536,7 @@ function flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $kont
 	fclose($fp);
 	unlink($filnavn); # sletter filen.
 	unlink($filnavn."2"); # sletter filen.
+#xit;
 	transaktion('commit');
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
 }

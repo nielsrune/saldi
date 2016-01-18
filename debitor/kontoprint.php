@@ -1,5 +1,5 @@
 <?php #topkode_start
-// ----------------debitor/kontoprint-----lap 3.2.9---2013.05.12-------
+// ----------------debitor/kontoprint-----lap 3.5.5---2015.04.09-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 //2013.05.10 Tjekker om formular er oprettet og opretter hvis den ikke er.
 //2013.05.12 Virker nu også når der er mere end 1 konto
+//2015.03.16 
+//2015.04.09 Sidste side blev ikke udskrevet v. flere sider. Ændrer $side til $side-1. 20150409
 
 @session_start();
 $s_id=session_id();
@@ -227,9 +229,10 @@ for ($q=0;$q<count($konto_id);$q++) {
 			$dksaldo="0,00";
 		}
 		$y=$y-4;
-		$qxt="select * from openpost where konto_id='$konto_id[$q]'  and transdate >= '$dato_fra' order by transdate";
+		$qxt="select * from openpost where konto_id='$konto_id[$q]'  and transdate >= '$dato_fra' order by transdate,id";
 		$q1 = db_select("$qxt",__FILE__ . " linje " . __LINE__);
 		while ($r1 = db_fetch_array($q1)) {
+#cho "$r1[transdate] $saldo $r1[amount]<br>"; 
 			$debet=0;
 			$kredit=0;
 			($r1['amount']>=0)?$debet=$r1['amount']:$kredit=$r1['amount']*-1;
@@ -244,12 +247,11 @@ for ($q=0;$q<count($konto_id);$q++) {
 			if ($deb_valuta!="DKK" && $deb_valuta!=$valuta) $amount=$dkkamount*100/$deb_valutakurs;
 			elseif ($deb_valuta==$valuta) $amount=$r2['amount'];
 			else $amount=$dkkamount;
-		if ($deb_valuta=='DKK') $amount=$dkkamount;
-		$saldo+=$amount;
-		$dkkforfalden+=$dkkamount;
-		$belob=dkdecimal($amount);
-
-		for ($z=1; $z<=$var_antal; $z++) {
+			if ($deb_valuta=='DKK') $amount=$dkkamount;
+#			$saldo+=$amount; 20150316
+			$dkkforfalden+=$dkkamount;
+			$belob=dkdecimal($amount);
+			for ($z=1; $z<=$var_antal; $z++) {
  				if ($variabel[$z]=="dato") {
  					$z_dato=$z;
  					skriv($str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", dkdato($r1['transdate']), "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular");
@@ -291,8 +293,9 @@ for ($q=0;$q<count($konto_id);$q++) {
 			$ialt=dkdecimal($forfalden);
 			find_form_tekst("$konto_id[$q]", "S","$formular","0","$linjeafstand","");
 			bundtekst($konto_id[$q]);
-			$udskrevet=$side;
-		}
+			$udskrevet=$side-1; #20150410
+ 		}
+#cho "$udskrevet!=$side<br>";
 		}
 		if ($udskrevet!=$side) {
 			formulartekst($konto_id[$q],$formular,$formularsprog); 		 
@@ -306,7 +309,7 @@ for ($q=0;$q<count($konto_id);$q++) {
 }
 		}
 fclose($fp);
-
+#xit;
 #if ($mailantal>0) include("mail_faktura.php");
 #cho "lukker nu<br>";
 #xit;

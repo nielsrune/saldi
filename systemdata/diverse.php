@@ -1,23 +1,25 @@
 <?php
-// -------------------- systemdata/diverse.php ------ patch 3.4.0-----2014.05.08--------
+// -------------------- systemdata/diverse.php ------ patch 3.6.2 -- 2016-01-16 --
+//
+// LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg.
+// som er udgivet af "The Free Software Foundation", enten i version 2
+// af denne licens eller en senere version, efter eget valg.
 // Fra og med version 3.2.2 dog under iagttagelse af følgende:
 // 
 // Programmet må ikke uden forudgående skriftlig aftale anvendes
 // i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
-// 
-// Programmet er udgivet med haab om at det vil vaere til gavn,
+//
+// Dette program er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
 // GNU General Public Licensen for flere detaljer.
-// 
-// En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// En dansk oversaettelse af licensen kan laeses her:
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 2012.09.20 Tilføjet integration med ebconnect
 // 2013.01.19 funktioner lagt i selvstændig fil (../includes/sys_div_func.php)
@@ -27,6 +29,16 @@
 // 2014.01.29	Tilføjet valg til automatisk genkendelse af betalingskort (kun ved integreret betalingsterminal) Søg 20140129
 // 2014.04.29	Ændret teksten så siden er mere overskuelig. Claus Agerskov ca@saldi.dk
 // 2014.05.08	Tilføjet valg til bordhåndtering under pos_valg Søg 20140508
+// 2014.06.16 Tilføjet mellemkonto til pos kasser. Søg mellemkonto.
+// 2014.07.01	FTP ændret til bilag og intern bilagsopbevaring flyttet til owncloud
+// 2015.04.11	Tilføjet labelprint.Søg label
+// 20150424 CA  Ændret link til funktionsfilen sys_div_func.php    Søg 20150424a
+// 20150424 CA  Ændret link til funktionsfilen konv_lager.php      Søg 20150424b
+// 20150424 CA  Benytter funktionen skriv_formtabel til formularer Søg 20150424c
+// 20150612 CA  Databasehåndtering af prislister (ej afsluttet)    Søg 20150612
+// 20150907 PHR Sætpriser tilføjet under ordre_valg, Søg 20150907 & $saetvareid
+// 20151006 PHR Labelprint ændret fra php til html og kontrol for php indsat.
+// 20160116 PHR Indsat kontrol for ftp adgang v ebconnect integration
 
 @session_start();
 $s_id=session_id();
@@ -39,7 +51,8 @@ $diffkto=NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-include("../includes/sys_div_func.php");	
+include("sys_div_func.php"); # 20150424a
+include("skriv_formtabel.inc.php"); # 20150424c
 
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
@@ -94,7 +107,7 @@ if ($_POST) {
 		}
 	#######################################################################################
 	} elseif ($sektion=='div_valg') {
-		$id=$_POST['id'];
+		$id=$_POST['id']*1;
 		$box1=$_POST['box1'];
 		$box2=$_POST['box2'];
 		$box3=$_POST['box3']; #ledig
@@ -106,17 +119,18 @@ if ($_POST) {
 		$box9=$_POST['box9']; #ledig
 		$box10=$_POST['box10'];
 
-		if ($box8) $box8=$_POST['oiourl'].chr(9).$_POST['oiobruger'].chr(9).$_POST['oiokode'];
-
-		if  (($id==0) && ($r = db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr='2'",__FILE__ . " linje " . __LINE__)))) $id=$r['id'];
-		elseif ($id==0){
-			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10) values ('Div_valg','2','DIV','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10')",__FILE__ . " linje " . __LINE__);
+		if ($box8) {
+			ftptest($_POST['oiourl'],$_POST['oiobruger'],$_POST['oiokode']);
+			$box8=$_POST['oiourl'].chr(9).$_POST['oiobruger'].chr(9).$_POST['oiokode'];
+		}
+		if (($id==0) && ($r = db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr='2'",__FILE__ . " linje " . __LINE__)))) $id=$r['id'];
+		if ($id==0){
+		db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10) values ('Div_valg','2','DIV','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10')",__FILE__ . " linje " . __LINE__);
 		} elseif ($id > 0) {
 			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10' where id = '$id'",__FILE__ . " linje " . __LINE__);
 		}
 	#######################################################################################
 	} elseif ($sektion=='ordre_valg') {
-		$id=$_POST['id'];
 		$box1=$_POST['box1'];#incl_moms
 		$box2=$_POST['box2'];#Rabatvarenr
 		$box3=$_POST['box3'];#folge_s_tekst
@@ -130,6 +144,10 @@ if ($_POST) {
 		$box11=$_POST['box11'];#advar_lav_beh
 		$box12=$_POST['box12'];#$procentfakt
 		$box13=$_POST['procenttillag'].chr(9).$_POST['procentvare'];
+		$box14=$_POST['box14'];
+		$rabatvarenr=$_POST['rabatvarenr'];
+		$kostmetode=$_POST['kostmetode'];
+		$saetvarenr=$_POST['saetvarenr']; #20150907
 
 		if ($box2 && $r=db_fetch_array(db_select("select id from varer where varenr = '$box2'",__FILE__ . " linje " . __LINE__))) {
 			$box2=$r['id'];
@@ -137,13 +155,32 @@ if ($_POST) {
 				$txt = str_replace('XXXXX',$box2,findtekst(289,$sprog_id));
 				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 		}
-
-		if  (($id==0) && ($r = db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr='3'",__FILE__ . " linje " . __LINE__)))) $id=$r['id'];
-		elseif ($id==0){
-			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12,box13) values ('Div_valg (Ordrer)','3','DIV','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10','$box11','$box12','$box13')",__FILE__ . " linje " . __LINE__);
-		} elseif ($id > 0) {
-			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12',box13='$box13' where id = '$id'",__FILE__ . " linje " . __LINE__);
+		if ($box14 && !$box2) {
+			$txt="Samlet pris forudsætter at der er et varenr til rabat";
+			print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
+			$box14='';
 		}
+		#20150907 ->
+		if ($saetvarenr && $r=db_fetch_array(db_select("select id from varer where varenr = '$saetvarenr'",__FILE__ . " linje " . __LINE__))) {
+			$saetvareid=$r['id'];
+		}
+		if ($saetvarenr && !$saetvareid) { 
+			$txt="Varenummer for sæt eksisterer ikke";
+			print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
+		}
+		# <- 20150907
+		if  ($r = db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr='3'",__FILE__ . " linje " . __LINE__))) {
+			$id=$r['id'];
+			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12',box13='$box13',box14='$box14' where id = '$id'",__FILE__ . " linje " . __LINE__);
+		} else {
+			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12,box13,box14) values ('Div_valg (Ordrer)','3','DIV','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10','$box11','$box12','$box13','$box14')",__FILE__ . " linje " . __LINE__);
+		}		
+		if ($r = db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr='5'",__FILE__ . " linje " . __LINE__))) {
+			$id=$r['id'];
+			db_modify("update grupper set box6='$kostmetode',box8='$saetvareid' where id = '$id'",__FILE__ . " linje " . __LINE__);
+		} else {
+			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12,box13) values ('Div_valg','5','DIV','','','','','','','$kostmetode','','','','','','')",__FILE__ . " linje " . __LINE__);
+		} 
 	#######################################################################################
 	} elseif ($sektion=='vare_valg') {
 		$id=$_POST['id'];
@@ -152,19 +189,27 @@ if ($_POST) {
 		$box3=if_isset($_POST['box3']);#shop valg
 		$box4=if_isset($_POST['box4']);#merchant id
 		$box5=if_isset($_POST['box5']);#md5 secret
-		$box6=if_isset($_POST['box6']);#ledig
-		$box7=if_isset($_POST['box7']);#ledig
-		$box8=if_isset($_POST['box8']);#ledig
+		$box6=if_isset($_POST['box6']);#Bruges ved vare_valg
+		$box7=if_isset($_POST['box7']);#Tegnsæt for webshop
+		$box8=if_isset($_POST['box8']);#Bruges ved ordre_valg
 		$box9=if_isset($_POST['box9']);#ledig
 		$box10=if_isset($_POST['box10']);#ledig
 		
 		if ($box3=='1') $box2='!';
+		if ($box6) {
+			if ($r=db_fetch_array(db_select("select id from grupper where art = 'VG' and box1 != box2",__FILE__ . " linje " . __LINE__))) {
+				$txt = findtekst(733,$sprog_id);
+				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=../systemdata/konv_lager.php\">\n"; # 20140424b
+				exit;
+			}
+		}
 		
 		if  (($id==0) && ($r = db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr='5'",__FILE__ . " linje " . __LINE__)))) $id=$r['id'];
 		elseif ($id==0){
 			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10) values ('Div_valg (Varer)','5','DIV','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10')",__FILE__ . " linje " . __LINE__);
 		} elseif ($id > 0) {
-			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10' where id = '$id'",__FILE__ . " linje " . __LINE__);
+			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box7='$box7',box9='$box9',box10='$box10' where id = '$id'",__FILE__ . " linje " . __LINE__);
 		}
 	#######################################################################################
 	} elseif ($sektion=='varianter') {
@@ -184,6 +229,23 @@ if ($_POST) {
 			if ($var_type_beskrivelse[$x] && $variant_id[$x]) db_modify("insert into variant_typer (beskrivelse,variant_id) values ('$var_type_beskrivelse[$x]','$variant_id[$x]')",__FILE__ . " linje " . __LINE__);
 		}
 	#######################################################################################
+	} elseif ($sektion=='label') {
+		$label=if_isset($_POST['label']);
+		$fy_ord=array('<?php','<?','?>');
+		for ($x=0;$x<count($fy_ord);$x++) {
+			if (strstr($label,$fy_ord[$x])) {
+				$label=str_replace($fy_ord[$x],'',$label);
+				print "<BODY onLoad=\"JavaScript:alert('Illegal værdi i labeltekst')\">";
+			}
+		}
+		$r = db_fetch_array(db_select("select id from grupper where art = 'LABEL'",__FILE__ . " linje " . __LINE__));
+		$id=$r['id'];
+		if ($id) {
+			db_modify("update grupper set  box1='".db_escape_string($label)."' where id = '$id'",__FILE__ . " linje " . __LINE__);
+		} else {
+			db_modify("insert into grupper (beskrivelse,kodenr,art,box1) values ('Label layout','1','LABEL','".db_escape_string($label)."')",__FILE__ . " linje " . __LINE__);
+		} 
+	#######################################################################################
 	} elseif ($sektion=='prislister') {
 		$id=$_POST['id'];
 		$beskrivelse=$_POST['beskrivelse'];
@@ -195,18 +257,25 @@ if ($_POST) {
 		$box6=$_POST['rabat'];
 		$box7=$_POST['grupper'];
 		$box8=$_POST['gruppe'];
+		$box9=$_POST['filtype'];
+		$slet=$_POST['slet'];
 		$antal=$_POST['antal'];
 
 		for($x=1;$x<=$antal;$x++) {
 			if (!$box4[$x]) $box1[$x]='';
 
 			$id[$x]*=1;
+echo "\n<p> id[$x] = $id[$x] box2[$x] = $box2[$x]   box4[$x] = $box4[$x] slet[$x] = $slet[$x] </p>";
 			if ($id[$x]==0 && $box4[$x] && $r = db_fetch_array(db_select("select id from grupper where art='PL' and beskrivelse='$beskrivelse[$x]'",__FILE__ . " linje " . __LINE__))) {
 				$id[$x]=$r['id'];
-			} elseif ($id[$x]==0 && $box4[$x]){
-				db_modify("insert into grupper (beskrivelse,kodenr,art,box2,box4,box6,box8) values ('$beskrivelse[$x]','0','PL','$box2[$x]','$box4[$x]','$box6[$x]','$box8[$x]')",__FILE__ . " linje " . __LINE__);
+			} elseif ( $id[$x]==0 && $box4[$x] && $beskrivelse[$x] ) {
+				$box4[$x]=0; # 20150612
+				db_modify("insert into grupper (beskrivelse,kodenr,art,box2,box4,box6,box8,box9) values ('$beskrivelse[$x]','0','PL','$box2[$x]','$box4[$x]','$box6[$x]','$box8[$x]','$box9[$x]')",__FILE__ . " linje " . __LINE__);
+			} elseif ( $id[$x] && $slet[$x]=="Slet" ) {
+				db_modify("delete from grupper where id='$id[$x]'",__FILE__ . " linje " . __LINE__);
+				$slet[$x]=$slet[$x];
 			} elseif ($id[$x] > 0) {
-				db_modify("update grupper set box1='$box1[$x]',box2='$box2[$x]',box4='$box4[$x]',box6='$box6[$x]',box8='$box8[$x]' where id='$id[$x]'",__FILE__ . " linje " . __LINE__);
+				db_modify("update grupper set beskrivelse='$beskrivelse[$x]',box1='$box1[$x]',box2='$box2[$x]',box4='$box4[$x]',box6='$box6[$x]',box8='$box8[$x]',box9='$box9[$x]' where id='$id[$x]'",__FILE__ . " linje " . __LINE__);
 			}
 		}
 	#######################################################################################
@@ -256,10 +325,15 @@ if ($_POST) {
 		$optalassist=if_isset($_POST['optalassist']);
 		$printer_ip=if_isset($_POST['printer_ip']);
 		$terminal_ip=if_isset($_POST['terminal_ip']);
+		$koekkenprinter=if_isset($_POST['koekkenprinter']);
 		$betalingskort=if_isset($_POST['betalingskort']); #20131210
 		$div_kort_kto=if_isset($_POST['div_kort_kto']); #20140129
 		$bordantal=if_isset($_POST['bordantal']); #20140508
 		$bord=if_isset($_POST['bord']); #20140508
+		$mellemkonti=if_isset($_POST['mellemkonti']);
+		$diffkonti=if_isset($_POST['diffkonti']);
+		$varenr=if_isset($_POST['varenr']);
+		$vis_saet=if_isset($_POST['vis_saet']);
 		
 		$box2=NULL;
 		$box3=NULL;
@@ -267,25 +341,38 @@ if ($_POST) {
 		$box8=NULL;
 		$box3_2=NULL;
 		$box4_2=NULL;
+		$box11_2=NULL;
 		for ($x=0;$x<$box1;$x++) {
-			if ($kassekonti[$x] && is_numeric($kassekonti[$x]) && db_fetch_array(db_select("select id from kontoplan where kontonr = '$kassekonti[$x]'",__FILE__ . " linje " . __LINE__))) {
-				if ($box2) {
-					$box2.=chr(9).$kassekonti[$x];
-					$box3.=chr(9).$afd_nr[$x];
-					$box7.=chr(9).$moms_nr[$x];
-					$box3_2.=chr(9).$printer_ip[$x];	
-					$box4_2.=chr(9).$terminal_ip[$x];	
-					} else {
-					$box2=$kassekonti[$x];
-					$box3=$afd_nr[$x];
-					$box7=$moms_nr[$x];
-					$box3_2.=$printer_ip[$x];	
-					$box4_2.=$terminal_ip[$x];	
-				}
-			}	else {
+			if (!($kassekonti[$x] && is_numeric($kassekonti[$x]) && db_fetch_array(db_select("select id from kontoplan where kontonr = '$kassekonti[$x]'",__FILE__ . " linje " . __LINE__)))) {
 				if ($kassekonti[$x]) $txt=str_replace("<variable>",$kassekonti[$x],findtekst(277,$sprog_id));
 				else $txt = findtekst(278,$sprog_id);
 				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
+			}
+			$txt='';
+			if (!($mellemkonti[$x] && is_numeric($mellemkonti[$x]) && db_fetch_array(db_select("select id from kontoplan where kontonr = '$mellemkonti[$x]'",__FILE__ . " linje " . __LINE__)))) {
+				if ($mellemkonti[$x]) $txt=str_replace("<variable>",$mellemkonti[$x],findtekst(717,$sprog_id));
+				if ($mellemkonti[$x]) $txt=str_replace("<variable>",$diffkonti[$x],findtekst(723,$sprog_id));
+				# else $txt = findtekst(718,$sprog_id);
+				if ($txt) print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
+			}
+			if ($box2) {
+				$box2.=chr(9).$kassekonti[$x];
+				$box3.=chr(9).$afd_nr[$x];
+				$box7.=chr(9).$moms_nr[$x];
+				$box3_2.=chr(9).$printer_ip[$x];	
+				$box4_2.=chr(9).$terminal_ip[$x];	
+				$box8_2.=chr(9).$mellemkonti[$x];	
+				$box9_2.=chr(9).$diffkonti[$x];	
+				$box10_2.=chr(9).$koekkenprinter[$x];	
+			} else {
+				$box2=$kassekonti[$x];
+				$box3=$afd_nr[$x];
+				$box7=$moms_nr[$x];
+				$box3_2.=$printer_ip[$x];	
+				$box4_2.=$terminal_ip[$x];	
+				$box8_2.=$mellemkonti[$x];	
+				$box9_2.=$diffkonti[$x];	
+				$box10_2.=$koekkenprinter[$x];	
 			}
 		}
 		$box5=NULL;
@@ -315,6 +402,12 @@ if ($_POST) {
 			if (!$bord[$x])$bord[$x]="Bord ".$tmp;
 			($box7_2)?$box7_2.=chr(9).$bord[$x]:$box7_2=$bord[$x];
 		}
+		if ($varenr && $r=db_fetch_array(db_select("select id from varer where varenr = '$varenr'",__FILE__ . " linje " . __LINE__))) {
+			$box11_2=$r['id'];
+		} elseif ($varenr) {
+				$txt = str_replace('XXXXX',$varenr,findtekst(289,$sprog_id));
+				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
+		}
 		if ($rabatvarenr && $r=db_fetch_array(db_select("select id from varer where varenr = '$rabatvarenr'",__FILE__ . " linje " . __LINE__))) {
 			$box8=$r['id'];
 		} elseif ($rabatvarenr) {
@@ -327,7 +420,7 @@ if ($_POST) {
 		} elseif ($id1 > 0) {
 			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12',box13='$box13',box14='$box14' where id = '$id1'",__FILE__ . " linje " . __LINE__);
 		}
-		if ($id2) db_modify("update grupper set box1='$kasseprimo',box2='$optalassist',box3='$box3_2',box4='$box4_2',box5='$box5_2',box6='$div_kort_kto',box7='$box7_2' where id = '$id2'",__FILE__ . " linje " . __LINE__);
+		if ($id2) db_modify("update grupper set box1='$kasseprimo',box2='$optalassist',box3='$box3_2',box4='$box4_2',box5='$box5_2',box6='$div_kort_kto',box7='$box7_2',box8='$box8_2',box9='$box9_2',box10='$box10_2',box11='$box11_2',box12='$vis_saet' where id = '$id2'",__FILE__ . " linje " . __LINE__);
 
 		#######################################################################################
 	} elseif ($sektion=='docubizz') {
@@ -348,42 +441,54 @@ if ($_POST) {
 		include("docubizzexport.php");
 		$r = db_fetch_array(db_select("select * from grupper where art = 'DocBiz'",__FILE__ . " linje " . __LINE__));
 		$kommando="cd ../temp/$db\n$exec_path/ncftp ftp://".$r['box2'].":".$r['box3']."@".$r['box1']."/".$r['box5']." < ftpscript > NULL ";
-echo str_replace("\n","<br>",$kommando)."<br>";
 		system ($kommando);
 		print "<BODY onLoad=\"JavaScript:alert('Data sendt til DocuBizz')\">";
 #######################################################################################
-	} elseif ($sektion=='ftp') {
+	} elseif ($sektion=='bilag') {
 		$id=$_POST['id'];
 		$box1=$_POST['box1'];
 		$box2=$_POST['box2'];
 		$box3=$_POST['box3'];
 		$box4=$_POST['box4'];
 		$box5=$_POST['box5'];
-		$box6=$_POST['box6'];
-		if ($box6) {
-			include("../includes/connect.php");
-			$r=db_fetch_array(db_select("select * from diverse where beskrivelse='FTP' and nr='1'"));
-			$box1=$r['box1'];
-			$box2=$r['box2'];
-			$box3=$r['box3'];
-			$box4=$r['box4'];
-			$box5=$r['box5'];
-			include("../includes/online.php");
-		}
+		($_POST['box6']=='intern_ftp')?$box6='on':$box6=NULL;
+		$box7=$_POST['box7'];
+#		if ($box6) {
+#			include("../includes/connect.php");
+#			$r=db_fetch_array(db_select("select * from diverse where beskrivelse='FTP' and nr='1'"));
+#			$box1=$r['box1'];
+#			$box2=$r['box2'];
+#			$box3=$r['box3'];
+#			$box4=$r['box4'];
+#			$box5=$r['box5'];
+#			include("../includes/online.php");
+#		}
 		if ($box1 && substr($box1,-1)!="/") $box1.="/";
 		if ($box6 && $box1 && !strpos($_SERVER['SERVER_NAME'],$box1)) $box1.=$_SERVER['SERVER_NAME']."/";
 		if ($box6 && $box1 && !strpos($db,$box1)) $box1.=$db."/";
 		if ($box3=='********') {
-			$r=db_fetch_array(db_select("select box3 from grupper where art = 'FTP'",__FILE__ . " linje " . __LINE__));
+			$r=db_fetch_array(db_select("select box3 from grupper where art = 'bilag'",__FILE__ . " linje " . __LINE__));
 			$box3=$r['box3'];
 		}
-		if ($box1 && $box2 && $box3 && $box4 && $box5) testftp($box1,$box2,$box3,$box4,$box5,$box6);
-		if  ((!$id) && ($r = db_fetch_array(db_select("select id from grupper where art = 'FTP'",__FILE__ . " linje " . __LINE__)))) $id=$r['id'];
+		if (!$box6 && $box1 && $box2 && $box4 && $box5) testftp($box1,$box2,$box3,$box4,$box5,$box6);
+		if  ((!$id) && ($r = db_fetch_array(db_select("select id from grupper where art = 'bilag'",__FILE__ . " linje " . __LINE__)))) $id=$r['id'];
 		elseif (!$id){
-			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5) values ('FTP til bilag og dokumenter','1','FTP','$box1','$box2','$box3','$box4','$box5')",__FILE__ . " linje " . __LINE__);
+			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7) values ('Bilag og dokumenter','1','bilag','$box1','$box2','$box3','$box4','$box5','$box6','$box7')",__FILE__ . " linje " . __LINE__);
 		} elseif ($id > 0) {
-			db_modify("update grupper set box1='$box1',box2='$box2',box4='$box4',box5='$box5',box6='$box6' where id = '$id'",__FILE__ . " linje " . __LINE__);
-			if ($box3!='********') db_modify("update grupper set  box3='$box3' where id = '$id'",__FILE__ . " linje " . __LINE__);
+			if ($box6) {
+				db_modify("update grupper set box6='$box6',box7='$box7' where id = '$id'",__FILE__ . " linje " . __LINE__);
+			} else {
+				db_modify("update grupper set box1='$box1',box2='$box2',box4='$box4',box5='$box5',box6='$box6' where id = '$id'",__FILE__ . " linje " . __LINE__);
+				include("../includes/connect.php");
+				db_modify("update regnskab set bilag='0' where id = '$db_id'",__FILE__ . " linje " . __LINE__);
+				include("../includes/online.php");
+				if ($box3!='********') db_modify("update grupper set  box3='$box3' where id = '$id'",__FILE__ . " linje " . __LINE__);
+			}
+		}
+		if ($box6) {
+			include("../includes/connect.php");
+			db_modify("update regnskab set bilag='1' where id = '$db_id'",__FILE__ . " linje " . __LINE__);
+			include("../includes/online.php");
 		}
 #######################################################################################
 	} elseif ($sektion=='email') {
@@ -476,7 +581,6 @@ echo str_replace("\n","<br>",$kommando)."<br>";
 		}
 	}elseif ($sektion=='sqlquery_io') {
 		$sqlstreng=if_isset($_POST['sqlstreng']);
-
 	} elseif ($sektion=='kontoindstillinger') {
 		if (strstr($_POST[submit],'Skift')) {
 			$nyt_navn=trim(db_escape_string($_POST['nyt_navn']));
@@ -563,7 +667,7 @@ if ($menu != 'T') {
 	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_valg>Diverse valg</a></td></tr>\n";
 	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=tjekliste>Tjeklister</a></td></tr>\n";
 	if ($docubizz) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=docubizz>DocuBizz</a></td></tr>\n";
-	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=ftp>FTP info</a></td></tr>\n";
+	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=bilag>Bilagshåndtering</a></td></tr>\n";
 	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=orediff>".findtekst(170,$sprog_id)."</a><!--tekst 170--></td></tr>\n";
 	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=massefakt>".findtekst(200,$sprog_id)."</a><!--tekst 200--></td></tr>\n";
 	if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pos_valg>".findtekst(271,$sprog_id)."</a><!--tekst 271--></td></tr>\n";
@@ -578,12 +682,12 @@ if ($sektion=="kontoindstillinger") kontoindstillinger($regnskab,$skiftnavn);
 if ($sektion=="provision") provision();
 if ($sektion=="personlige_valg") personlige_valg();
 if ($sektion=="ordre_valg") ordre_valg();
-if ($sektion=="vare_valg" || $sektion=="varianter") vare_valg();
+if ($sektion=="vare_valg" || $sektion=="varianter" || $sektion=="label") vare_valg();
 if ($sektion=="prislister") prislister();
 if ($sektion=="rykker_valg") rykker_valg();
 if ($sektion=="div_valg") div_valg();
 if ($sektion=="docubizz") docubizz();
-if ($sektion=="ftp") ftp();
+if ($sektion=="bilag") bilag();
 if ($sektion=="orediff") orediff($diffkto);
 if ($sektion=="massefakt") massefakt();
 if ($sektion=="pos_valg") pos_valg();

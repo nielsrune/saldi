@@ -26,10 +26,14 @@ $modulnr=6;
 $title="Massefakturering"; #Hvis title aendres skar bogfor.php ogsaa aendres.
 $css="../css/standard.css";
 
+
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-	
+include("../includes/ordrefunc.php");
+
+$valg=if_isset($_GET['valg']);
+
 $r=db_fetch_array(db_select("select box2, box3 from grupper where art='MFAKT' and kodenr='1'",__FILE__ . " linje " . __LINE__));
 $delfakturer=$r['box2'];
 $levfrist=$r['box3'];
@@ -43,14 +47,13 @@ $dellevdate=date("Y-m-d",$tmp);	# hvis ordren er fra denne dato eller foer delle
 #	$dellevdate=usdate(forfaldsdag($dd,"netto",-$levfrist));
 #} elseif ($delfakturer) $dellevdate=date("Y-m-d");
 
-include("../debitor/levering.php");
-include("../debitor/bogfor.php");
+#include("../debitor/levering.php");
+#include("../debitor/bogfor.php");
 $tekst=findtekst(154,$sprog_id);
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-if ($popup) print "<td width=\"10%\" $top_bund><a href=\"../includes/luk.php\" accesskey=L>Luk</a></td>";
-else print "<span onclick=\"javascript:window.opener.focus();window.close();\"><a href accesskey=L>Luk</a></span></td>";
+print "<td width=\"10%\" $top_bund><a href=\"../debitor/ordreliste.php?valg=$valg\" accesskey=L>Luk</a></td>";
 print "<td width=\"80%\" $top_bund align=\"center\"> $title</td>";
 print "<td width=\"10%\" $top_bund align=\"right\"><br></td></tr>";
 print "</tbody></table>";
@@ -85,8 +88,8 @@ while ($ordre_id) {
 		exit;
 	}
 	$gl_id=$ordre_id;
-	if ($delfakturer) $ordre_id=delfakturer($ordre_id);
-	list($ordre_id,$leveres)=find_next($ordre_id);
+	if ($delfakturer) $ordre_id=delfakturer($ordre_id,$valg);
+	list($ordre_id,$leveres)=find_next($ordre_id,$valg);
 	if ($ordre_id && $leveres) {
 		$x++;
 		$ordre_antal++;
@@ -100,7 +103,9 @@ while ($ordre_id) {
 		$rest_id[$rest]=$ordre_id;
 	} 
 	if ($x>=10) {
-		if ($r=db_fetch_array($q=db_select("select count(*) as antal from ordrer where (status='1' or status='2') and art='DO'",__FILE__ . " linje " . __LINE__))) echo "Vent - $r[antal] ordrer tilbage<br>"; 
+		if ($valg=='tilbud') $qtxt="select count(*) as antal from ordrer where status='0' and art='DO'";
+		else $qtxt= "select count(*) as antal from ordrer where (status='1' or status='2') and art='DO'";
+		if ($r=db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) echo "Vent - $r[antal] ordrer tilbage<br>"; 
 		$tmp=explode($rest_id);
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=massefakt.php?ordre_id=$ordre_id&ordre_antal=$ordre_antal&rest=$rest&rest_id=$tmp&skriv=$skriv\">";
 		exit;
@@ -109,7 +114,9 @@ while ($ordre_id) {
 include("../includes/genberegn.php");
 genberegn($regnaar);
 
-if ($skriv) print "<BODY onLoad=\"JavaScript:window.open('../debitor/formularprint.php?id=-1&skriv=$skriv&formular=4,3&ordre_antal=$ordre_antal' , '' , ',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes, location=1');\">";			
+#if ($skriv) print "<BODY onLoad=\"JavaScript:window.open('../debitor/formularprint.php?id=-1&skriv=$skriv&formular=4,3&ordre_antal=$ordre_antal' , '' , ',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes, location=1');\">";			
+if ($skriv) print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/formularprint.php?id=-1&skriv=$skriv&formular=4,3&ordre_antal=$ordre_antal\">";
+
 if ($rest) {
 	$x=0;
 	$y=0;
@@ -170,8 +177,8 @@ if ($rest) {
 			if ($r['antal']>0 && $r2['lagervare']) {
 				if (!in_array($r['varenr'],$varenr)) {
 				$x++;
-				$beskrivelse[$x]=addslashes($r['beskrivelse']);
-					$varenr[$x]=addslashes($r['varenr']);
+				$beskrivelse[$x]=db_escape_string($r['beskrivelse']);
+					$varenr[$x]=db_escape_string($r['varenr']);
 					$antal[$x]=$r['antal']*1;
 					$q2=db_select("select modtagelser.antal as antal from modtageliste,modtagelser where modtageliste.modtagdate='$dd' and modtageliste.modtaget='V' and modtagelser.liste_id=modtageliste.id and modtagelser.varenr='$varenr[$x]'",__FILE__ . " linje " . __LINE__);
 					while($r2=db_fetch_array($q2)) $antal[$x]=$antal[$x]-$r['antal'];
@@ -180,36 +187,39 @@ if ($rest) {
 			}
 		}
 		if ($x>=1) {
-			print "<tr><td colspan=3 align=center>Plukliste $dkdd</td></tr>";
-			print "<tr><td align=center>Varenr</td><td align=center>Beskrivelse</td><td align=center>Antal</td></tr>";
-			for ($y=1;$y<=$x;$y++) print "<tr><td>$varenr[$y]</td><td>$beskrivelse[$y]</td><td align=right>$antal[$y]</td></tr>";
+			print "<tr><td colspan=3 align=center></td></tr>";
+#			print "<tr><td colspan=3 align=center>Plukliste $dkdd</td></tr>";
+#			print "<tr><td align=center>Varenr</td><td align=center>Beskrivelse</td><td align=center>Antal</td></tr>";
+#			for ($y=1;$y<=$x;$y++) print "<tr><td>$varenr[$y]</td><td>$beskrivelse[$y]</td><td align=right>$antal[$y]</td></tr>";
 		}
 	} else	print "<tr><td>Ingen ordrer til levering</td></tr>";
 	print "</tbody><table>";
 #}
 print "</tbody><table>";
 #print "<meta http-equiv=\"refresh\" content=\"10;URL=../includes/luk.php?\">";
-function delfakturer($ordre_id) {
+function delfakturer($ordre_id,$valg) {
 	global $dellevdate;
 	# Tjekker om der er noget der kan leveres. Hvis der er nedskrives antal til der der kan leveres og der oprettes en ny ordre med resten med samme ordrenr.
 	$drop=0;
 	$fakturer=0;
 	$delfakturer=0;
 
-	
-	if ($r=db_fetch_array($q=db_select("select id, ordredate from ordrer where (status='1' or status='2') and art='DO' and id > '$ordre_id' order by id",__FILE__ . " linje " . __LINE__))) {
-	$ordre_id=$r['id'];
-	$ordredate=$r['ordredate'];
-	$x=0;
-	$q=db_select("select * from ordrelinjer where ordre_id = '$ordre_id' order by id",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$x++;
-		if (!$drop && $r['vare_id']) {
-			$vare_id[$x]=$r['vare_id'];
-			$antal[$x]=$r['antal'];
-			$linje_id[$x]=$r['id'];
-			if ($vare_id[$x]) {
-				if (db_fetch_array(db_select("select id from batch_salg where linje_id=$linje_id[$x]",__FILE__ . " linje " . __LINE__))) $drop=1;
+	if ($valg=='tilbud') $qtxt="select id, ordredate from ordrer where status='0' and art='DO' and id > '$ordre_id' order by id";
+	elseif ($valg=='ordrer') $qtxt="select id, ordredate from ordrer where (status='1' or status='2') and art='DO' and id > '$ordre_id' order by id";
+	else return;
+	if ($r=db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		$ordre_id=$r['id'];
+		$ordredate=$r['ordredate'];
+		$x=0;
+		$q=db_select("select * from ordrelinjer where ordre_id = '$ordre_id' order by id",__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) {
+			$x++;
+			if (!$drop && $r['vare_id']) {
+				$vare_id[$x]=$r['vare_id'];
+				$antal[$x]=$r['antal'];
+				$linje_id[$x]=$r['id'];
+				if ($vare_id[$x]) {
+					if (db_fetch_array(db_select("select id from batch_salg where linje_id=$linje_id[$x]",__FILE__ . " linje " . __LINE__))) $drop=1;
 				else {
 					$r2=db_fetch_array(db_select("select varer.beholdning as beholdning, grupper.box8 as lagervare from varer, grupper where varer.id=$vare_id[$x] and grupper.art='VG' and grupper.kodenr = varer.gruppe",__FILE__ . " linje " . __LINE__));
 					$lagervare[$x]=$r2['lagervare'];
@@ -229,37 +239,37 @@ function delfakturer($ordre_id) {
 if (!$drop && $fakturer && $delfakturer) {
 	transaktion("begin");
 	$r=db_fetch_array($q=db_select("select * from ordrer where id = '$ordre_id'",__FILE__ . " linje " . __LINE__));
-	$ordrenr=addslashes($r['ordrenr']);
-	$konto_id=addslashes($r['konto_id']);
-	$kontonr=addslashes($r['kontonr']);
-	$firmanavn=addslashes($r['firmanavn']);
-	$addr1=addslashes($r['addr1']);
-	$addr2=addslashes($r['addr2']);
-	$postnr=addslashes($r['postnr']);
-	$bynavn=addslashes($r['bynavn']);
-	$land=addslashes($r['land']);
-	$kontakt=addslashes($r['kontakt']);
-	$kundeordnr=addslashes($r['kundeordnr']);
-	$betalingsdage=addslashes($r['betalingsdage']);
-	$betalingsbet=addslashes($r['betalingsbet']);
-	$cvrnr=addslashes($r['cvrnr']);
-	$ean=addslashes($r['ean']);
-	$institution=addslashes($r['institution']);
-	$notes=addslashes($r['notes']);
-	$art=addslashes($r['art']);
-	$ordredate=addslashes($r['ordredate']);
-	$momssats=addslashes($r['momssats']);
-	$ref=addslashes($r['ref']);
-	$status=addslashes($r['status']);
-	$lev_navn=addslashes($r['lev_navn']);
-	$lev_addr1=addslashes($r['lev_addr1']);
-	$lev_addr2=addslashes($r['lev_addr2']);
-	$lev_postnr=addslashes($r['lev_postnr']);
-	$lev_bynavn=addslashes($r['lev_bynavn']);
-	$lev_kontakt=addslashes($r['lev_kontakt']);
-	$valuta=addslashes($r['valuta']);
-	$projekt=addslashes($r['projekt']);
-	$sprog=addslashes($r['sprog']);
+	$ordrenr=db_escape_string($r['ordrenr']);
+	$konto_id=db_escape_string($r['konto_id']);
+	$kontonr=db_escape_string($r['kontonr']);
+	$firmanavn=db_escape_string($r['firmanavn']);
+	$addr1=db_escape_string($r['addr1']);
+	$addr2=db_escape_string($r['addr2']);
+	$postnr=db_escape_string($r['postnr']);
+	$bynavn=db_escape_string($r['bynavn']);
+	$land=db_escape_string($r['land']);
+	$kontakt=db_escape_string($r['kontakt']);
+	$kundeordnr=db_escape_string($r['kundeordnr']);
+	$betalingsdage=db_escape_string($r['betalingsdage']);
+	$betalingsbet=db_escape_string($r['betalingsbet']);
+	$cvrnr=db_escape_string($r['cvrnr']);
+	$ean=db_escape_string($r['ean']);
+	$institution=db_escape_string($r['institution']);
+	$notes=db_escape_string($r['notes']);
+	$art=db_escape_string($r['art']);
+	$ordredate=db_escape_string($r['ordredate']);
+	$momssats=db_escape_string($r['momssats']);
+	$ref=db_escape_string($r['ref']);
+	$status=db_escape_string($r['status']);
+	$lev_navn=db_escape_string($r['lev_navn']);
+	$lev_addr1=db_escape_string($r['lev_addr1']);
+	$lev_addr2=db_escape_string($r['lev_addr2']);
+	$lev_postnr=db_escape_string($r['lev_postnr']);
+	$lev_bynavn=db_escape_string($r['lev_bynavn']);
+	$lev_kontakt=db_escape_string($r['lev_kontakt']);
+	$valuta=db_escape_string($r['valuta']);
+	$projekt=db_escape_string($r['projekt']);
+	$sprog=db_escape_string($r['sprog']);
 
 	$tidspkt=date("U");
 	db_modify("insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, kundeordnr, betalingsdage, betalingsbet, cvrnr, ean, institution, notes, art, ordredate, momssats, tidspkt, ref, status, lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_kontakt, valuta, projekt, sprog) values ('$ordrenr','$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$kundeordnr','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$notes','$art','$ordredate','$momssats','$tidspkt','$ref','$status','$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$valuta','$projekt','$sprog')",__FILE__ . " linje " . __LINE__);
@@ -275,9 +285,9 @@ if (!$drop && $fakturer && $delfakturer) {
 	while ($r=db_fetch_array($q)) {
 		$x++;
 		$posnr[$x]=$r['posnr']*1;
-		$varenr[$x]=addslashes($r['varenr']);
+		$varenr[$x]=db_escape_string($r['varenr']);
 		$vare_id[$x]=$r['vare_id']*1;
-		$beskrivelse[$x]=addslashes($r['beskrivelse']);
+		$beskrivelse[$x]=db_escape_string($r['beskrivelse']);
 		$enhed[$x]=$r['enhed'];
 		$antal[$x]=$r['antal']*1;
 		$pris[$x]=$r['pris']*1;
@@ -312,13 +322,16 @@ if (!$drop) $ordre_id--; #eller bliver den ikke fundet i find_ordre
 return $ordre_id;
 }#endfunc delfakturer.
 
-function find_next($ordre_id) {
+function find_next($ordre_id,$valg) {
 # Finder n�ste godkendte �bne ordre hvor alt kan leveres, s�tter alt til levering og returnerer ordre_id
 
 $leveres=1;
 $dd=date("Y-m-d");
 #$x=0;
-if ($r=db_fetch_array($q=db_select("select id from ordrer where (status='1' or status='2') and art='DO' and id > '$ordre_id' order by id",__FILE__ . " linje " . __LINE__))) {
+if ($valg=='tilbud') $qtxt="select id from ordrer where status='0' and art='DO' and id > '$ordre_id' order by id";
+elseif ($valg=='ordrer') $qtxt="select id from ordrer where (status='1' or status='2') and art='DO' and id > '$ordre_id' order by id";
+else return;
+if ($r=db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	$ordre_id=$r['id'];
 	$leveres=1;
 	$q=db_select("select * from ordrelinjer where ordre_id = '$ordre_id' order by vare_id",__FILE__ . " linje " . __LINE__);
@@ -327,12 +340,10 @@ if ($r=db_fetch_array($q=db_select("select id from ordrer where (status='1' or s
 			$i_ordre[$y]=0;
 			$vare_id[$y]=0;
 		} 
-		if ($vare_id[$y]!=$r['vare_id']) {
-			if ($vare_id[$y]) {
-				$r3=db_fetch_array(db_select("select varer.beholdning as beholdning, grupper.box8 as lagervare from varer, grupper where varer.id=$vare_id[$y] and grupper.art='VG' and grupper.kodenr = varer.gruppe",__FILE__ . " linje " . __LINE__));
-				if ($r3['beholdning']<$i_ordre[$y]){
-					if($r3['lagervare']) $leveres=0;
-				}
+		if ($vare_id[$y] && $vare_id[$y]!=$r['vare_id']) {
+			$r3=db_fetch_array(db_select("select varer.beholdning as beholdning, grupper.box8 as lagervare from varer, grupper where varer.id=$vare_id[$y] and grupper.art='VG' and grupper.kodenr = varer.gruppe",__FILE__ . " linje " . __LINE__));
+			if ($r3['beholdning']<$i_ordre[$y]){
+				if($r3['lagervare']) $leveres=0;
 			}
 			$y++;
 			$linje_id[$y]=$r['id'];
@@ -361,7 +372,8 @@ if ($r=db_fetch_array($q=db_select("select id from ordrer where (status='1' or s
 $tmp=array($ordre_id,$leveres);
 return $tmp;
 } #endfunc findnext
-	
+
+/*
 function momsupdat($ordre_id){
 	$linje_id=array();
 	$linjesum=array();
@@ -397,4 +409,5 @@ function momsupdat($ordre_id){
 			}
 	}
 }
+*/
 ?>

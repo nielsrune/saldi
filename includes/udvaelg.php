@@ -1,5 +1,5 @@
 <?php
-// -------------/includes/udvaelg.php--------lap 3.4.0----2014.03.19-----
+// -------------/includes/udvaelg.php--------lap 3.5.9----2015.01.05-----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,14 +18,27 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2010 DANOSOFT ApS
+// Copyright (c) 2003-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
-#include("../includes/usdate.php");
+// 2015.01.05 Retter fejlindtastning til noget brugbart 20150105-1
+// 2015.01.05 sikrer at numeriske værdier er numeriske ved at gange med 1 20150105-2
+// 2015.06.01 Ved beløb skal , ikke erstattes af ":", for så kan man ikke søge på decimaler.
+// 2015.10.19 Ved enkelbeløb findes beløb ikke hvis de ikke stemmer på decimalen da der bogføres med 3 decimaler.
 
 if (!function_exists('udvaelg')){
 	function udvaelg ($tmp, $key, $art){
 		include("../includes/std_func.php");
 		$tmp=strtolower($tmp);
+		if ($art) { #20150105-1
+			if ($art!='BELOB') $tmp=str_replace(",",":",$tmp); #20150601
+			$tmp=str_replace(";",":",$tmp);
+			if ($art=='BELOB' && !strpos($tmp,':')) { #20151019
+				$tmp=usdecimal($tmp);
+				$tmp1=$tmp-0.005;
+				$tmp2=$tmp+0.004;
+				$tmp=number_format($tmp1,3,',','').":".number_format($tmp2,3,',','');
+			}
+		}
 		list ($tmp1, $tmp2)=explode(":", $tmp);
 		if ((strstr($tmp,':'))&&($art!='TID')){
 			if ($art=="DATO"){
@@ -37,8 +50,8 @@ if (!function_exists('udvaelg')){
 				$tmp2=usdecimal($tmp2);
 			}
 			elseif ($art=="NR") {
-				$tmp1=round($tmp1);
-				$tmp2=round($tmp2);
+				$tmp1=afrund($tmp1*1,2); #21050105-2
+				$tmp2=afrund($tmp2*1,2);
 			}
 			$udvaelg= "and $key >= '$tmp1' and $key <= '$tmp2'";
 		} else {
@@ -50,9 +63,9 @@ if (!function_exists('udvaelg')){
 				}
 			}
 			elseif ($art=="DATO") $tmp=usdate($tmp);
-			elseif ($art=="BELOB") $tmp=usdecimal($tmp);
 			if (!$art) {
 				$tmp=str_replace("*","%",$tmp);
+				$tmp=db_escape_string($tmp);
 				$udvaelg= " and lower($key) like '$tmp'";
 				} else $udvaelg= " and $key = '$tmp'";
 			}

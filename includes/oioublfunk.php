@@ -1,5 +1,5 @@
 <?php
-// -------includes/oioublfunk.php-----patch 3.3.9-----2014-02-06--------
+// -------includes/oioublfunk.php-----patch 3.5.6-----2015-05-25--------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,11 @@
 //
 // 20140206 Afrundingsfejl,saldi_390 ordre id 16090 differ 1 øre på linjesum. 
 //	Afrunding af pris flyttet ned efter beregning af linjesum. Søg 20140206
-
+// 20140919 - E-mail erstattet af ElectronicMail - Søg ElectronicMail
+// 20140919 - ID må ikke indeholde @. Fjerner derfor resten af linjen fra og med @. Søg 20140919
+// 20150525 - Procent fakturering fungerer nu også. 20150525
+// 20150825 - Forkert tjeksum v. kreditnota og fortegn blev ikke sat på momsberegning.
+// 20150922 - Div elimineringer af fejl og kommentarer medtages nu til kr. 0,00
 
 $oioxmlubl="OIOUBL";
 
@@ -56,7 +60,7 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 	
 	$query = db_select("select * from ordrer where id = $l_ordreid",__FILE__ . " linje " . __LINE__);
 	$r_faktura = db_fetch_array($query);
-	if ($db_encode!="UTF8") {
+	if ($db_encode!="UTF8") {	
 		$firmanavn=utf8_encode($r_faktura['firmanavn']);
 		$addr_1=utf8_encode($r_faktura['addr1']);
 		$addr_2=utf8_encode($r_faktura['addr2']);
@@ -101,11 +105,15 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 	if (!$kundeordnr) $kundeordnr='0'; # phr 20090803
 	while (strlen($cvrnr)<8) $cvrnr="0".$cvrnr;
 
-	$l_momsbeloeb=abs($r_faktura['moms']);
+	$l_momsbeloeb=afrund(abs($r_faktura['moms']),2);
 	$l_momssats=$r_faktura['momssats']*1;
-	$l_sumbeloeb=abs($r_faktura['sum']);
+	$l_sumbeloeb=afrund(abs($r_faktura['sum']),2);
 	$l_momspligtigt=(100*$l_momsbeloeb)/$l_momssats;
 	$l_momsfrit=$l_sumbeloeb-$l_momspligtigt;
+	if ($l_momsfrit<0.02) { #20150618
+		$l_momsfrit=0;
+		$l_momspligtigt=$l_sumbeloeb;
+	}
 	$l_forfaldsdate=usdate(forfaldsdag($r_faktura['fakturadate'], $r_faktura['betalingsbet'], $r_faktura['betalingsdage']));
 #	$l_retur.="\t<com:ID>".$r_faktura['fakturanr']."</com:ID>\n";
 #	$l_retur.="\t<com:IssueDate>".$r_faktura['fakturadate']."</com:IssueDate>\n";
@@ -135,6 +143,7 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		$egen_land=utf8_encode($r_egen['land']);
 		$egen_kontakt=utf8_encode($r_egen['kontakt']);
 		$egen_bank_navn=utf8_encode($r_egen['bank_navn']);
+		$egen_tlf=utf8_encode($r_egen['tlf']);
 	} else {
 		$egen_firmanavn=$r_egen['firmanavn'];
 		$egen_addr_1=$r_egen['addr1'];
@@ -144,6 +153,7 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		$egen_land=$r_egen['land'];
 		$egen_kontakt=$r_egen['kontakt'];
 		$egen_bank_navn=$r_egen['bank_navn'];
+		$egen_tlf=$r_egen['tlf'];
 	} 
 	$egen_firmanavn=htmlspecialchars($egen_firmanavn, ENT_QUOTES);
 	$egen_addr_1=htmlspecialchars($egen_addr_1, ENT_QUOTES);
@@ -153,6 +163,7 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 	$egen_land=htmlspecialchars($egen_land, ENT_QUOTES);
 	$egen_kontakt=htmlspecialchars($egen_kontakt, ENT_QUOTES);
 	$egen_bank_navn=htmlspecialchars($egen_bank_navn, ENT_QUOTES);
+	$egen_tlf=htmlspecialchars($egen_tlf, ENT_QUOTES);
 	$egen_cvrnr=str_replace(" ","",$r_egen['cvrnr']);
 
 	$l_retur.="<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
@@ -250,7 +261,7 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		$l_retur.="<cbc:PaymentDueDate>$l_forfaldsdate</cbc:PaymentDueDate>\n";
 		$l_retur.="<cbc:PaymentChannelCode listAgencyID=\"320\" listID=\"urn:oioubl:codelist:paymentchannelcode-1.1\">DK:BANK</cbc:PaymentChannelCode>\n";
 		$l_retur.="<cac:PayeeFinancialAccount>\n";
-		$l_retur.="<cbc:ID>".$r_egen['bank_konto']."</cbc:ID>\n";
+		$l_retur.="<cbc:ID>".str_replace(" ","",$r_egen['bank_konto'])."</cbc:ID>\n";
 		$l_retur.="<cac:FinancialInstitutionBranch>\n";
 		$l_retur.="<cbc:ID>".$r_egen['bank_reg']."</cbc:ID>\n";
 		$l_retur.="</cac:FinancialInstitutionBranch>\n";
@@ -286,10 +297,11 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 
 
 # Ordrelinjer
-	$query = db_select("select * from ordrelinjer where ordre_id = $l_ordreid and vare_id !='0' and antal != '0' order by posnr",__FILE__ . " linje " . __LINE__);
-
+	$tjeksum=0;
+	$posnr=0; #20150922
+	$query = db_select("select * from ordrelinjer where ordre_id = $l_ordreid order by posnr",__FILE__ . " linje " . __LINE__);
 	while ($r_linje = db_fetch_array($query)) {
-		
+		$posnr++; #20150922
 		if ($db_encode!="UTF8") {
 			$varenr=utf8_encode($r_linje['varenr']);
 			$enhed=utf8_encode($r_linje['enhed']);
@@ -298,32 +310,40 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 			$varenr=$r_linje['varenr'];
 			$enhed=$r_linje['enhed'];
 			$beskrivelse=$r_linje['beskrivelse'];
-		} 
+		}
+		if(!$beskrivelse) $beskrivelse=".";
 		$varenr=htmlspecialchars($varenr, ENT_QUOTES);
 		$enhed=htmlspecialchars($enhed, ENT_QUOTES);
 		$beskrivelse=htmlspecialchars($beskrivelse, ENT_QUOTES);
 		$pris=$r_linje['pris']*1;
+		$antal=$r_linje['antal'];
+		if(!$antal) { #20150922
+			$pris=0;
+			$antal=1;
+		}	
 		$momsfri=$r_linje['momsfri'];
 		$varemomssats=$r_linje['momssats']*1;
 		if (!$momsfri && !$varemomssats) $varemomssats=$l_momssats;
 		if ($varemomssats > $l_momssats) $varemomssats=$l_momssats;
-		if (!$varenr) $varenr='0'; #phr 20080803
+		if (!$varenr) $varenr='.'; #phr 20080803 + 20150922
+		if ($r_linje['procent']) $pris*=$r_linje['procent']/100; #20150525
 		$pris=$pris-($r_linje['rabat']*$pris)/100; #20140206 + næste 2 linjer
 		$linjepris=afrund($r_linje['antal']*$pris,2);
 		$pris=afrund($pris,2); 
 		$linjemoms=afrund($linjepris/100*$varemomssats,2);
-
 		if ($l_ptype=="PCM") {
 			$l_fortegn=-1;
+			$tjeksum-=$linjepris; #20150825
 		} else {
 			$l_fortegn=1;
+			$tjeksum+=$linjepris;
 		}
 		$l_retur.="<cac:".$l_doctype."Line>\n";
-		$l_retur.="<cbc:ID>".$r_linje['posnr']."</cbc:ID>\n";
-		$l_retur.="<cbc:".$l2_doctype."Quantity unitCode=\"".oioubl_enhed($enhed)."\">".$l_fortegn*$r_linje['antal']."</cbc:".$l2_doctype."Quantity>\n";
+		$l_retur.="<cbc:ID>".$posnr."</cbc:ID>\n";
+		$l_retur.="<cbc:".$l2_doctype."Quantity unitCode=\"".oioubl_enhed($enhed)."\">".$l_fortegn*$antal."</cbc:".$l2_doctype."Quantity>\n";
 		$l_retur.="<cbc:LineExtensionAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_fortegn*$linjepris)."</cbc:LineExtensionAmount>\n";
 		$l_retur.="<cac:TaxTotal>\n";
-		$l_retur.="<cbc:TaxAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $linjemoms)."</cbc:TaxAmount>\n";
+		$l_retur.="<cbc:TaxAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_fortegn*$linjemoms)."</cbc:TaxAmount>\n"; #20150825
 		$l_retur.="<cac:TaxSubtotal>\n";
 		$l_retur.="<cbc:TaxableAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_fortegn*$linjepris)."</cbc:TaxableAmount>\n";
 		$l_retur.="<cbc:TaxAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_fortegn*$linjemoms)."</cbc:TaxAmount>\n";
@@ -355,12 +375,48 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		$l_retur.="</cac:Price>\n";
 		$l_retur.="</cac:".$l_doctype."Line>\n";
 	}
+	if ($tjeksum!=$l_sumbeloeb) {
+	echo "$tjeksum!=$l_sumbeloeb"; 
+		$l_retur.="<cac:".$l_doctype."Line>\n";
+		$tmp=$posnr+1; 
+		$l_retur.="<cbc:ID>".$tmp."</cbc:ID>\n";
+		$l_retur.="<cbc:".$l2_doctype."Quantity unitCode=\"".oioubl_enhed($enhed)."\">1</cbc:".$l2_doctype."Quantity>\n";
+		$l_retur.="<cbc:LineExtensionAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_sumbeloeb-$tjeksum)."</cbc:LineExtensionAmount>\n";
+		$l_retur.="<cac:TaxTotal>\n";
+		$l_retur.="<cbc:TaxAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", 0)."</cbc:TaxAmount>\n";
+		$l_retur.="<cac:TaxSubtotal>\n";
+		$l_retur.="<cbc:TaxableAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_sumbeloeb-$tjeksum)."</cbc:TaxableAmount>\n";
+		$l_retur.="<cbc:TaxAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", 0)."</cbc:TaxAmount>\n";
+		$l_retur.="<cac:TaxCategory>\n";
+		if ($momsfri) $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">ZeroRated</cbc:ID>\n";
+		else $l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxcategoryid-1.1\">StandardRated</cbc:ID>\n";
+		$l_retur.="<cbc:Percent>".$varemomssats."</cbc:Percent>\n";
+		$l_retur.="<cac:TaxScheme>\n";
+		$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxschemeid-1.1\">63</cbc:ID>\n";
+		$l_retur.="<cbc:Name>Moms</cbc:Name>\n";
+		$l_retur.="</cac:TaxScheme>\n";
+		$l_retur.="</cac:TaxCategory>\n";
+		$l_retur.="</cac:TaxSubtotal>\n";
+		$l_retur.="</cac:TaxTotal>\n";
+		$l_retur.="<cac:Item>\n";
+		$l_retur.="<cbc:Description>Afrunding</cbc:Description>\n";
+#		$tmp=substr(utf8_decode($beskrivelse),0,40);
+#		$tmp=utf8_encode($tmp);
+		$l_retur.="<cbc:Name>Afrunding</cbc:Name>\n";
+#		$l_retur.="<cbc:Name>".substr($beskrivelse,0,15)."</cbc:Name>\n";
+		$l_retur.="<cac:SellersItemIdentification>\n";
+		$l_retur.="<cbc:ID>0</cbc:ID>\n";
+		$l_retur.="</cac:SellersItemIdentification>\n";
+		$l_retur.="</cac:Item>\n";
+		$l_retur.="<cac:Price>\n";
+		$l_retur.="<cbc:PriceAmount currencyID=\"$l_valutakode\">".sprintf("%01.2f", $l_sumbeloeb-$tjeksum)."</cbc:PriceAmount>\n"; # 20120515
+		$l_retur.="<cbc:BaseQuantity unitCode=\"ANN\">1</cbc:BaseQuantity>\n";
+		$l_retur.="<cbc:OrderableUnitFactorRate>1</cbc:OrderableUnitFactorRate>\n";
+		$l_retur.="</cac:Price>\n";
+		$l_retur.="</cac:".$l_doctype."Line>\n";
+	}
 	$l_retur.="</".$l_doctype.">\n";
-
-
-
 # $l_retur.=oioubl_bottom($l_doctype);
-
 	return $l_retur;
 }
 
@@ -556,15 +612,18 @@ function oioubl_kontaktinfo ($l_id="", $l_type) { # $l_type = BuyerContact
 			}
 
 			if ($r_kontakt['email']) {
-				$l_kontaktinfo.="<cbc:E-Mail>".$r_kontakt['email']."</cbc:E-Mail>\n";
+				$l_kontaktinfo.="<cbc:ElectronicMail>".$r_kontakt['email']."</cbc:ElectronicMail>\n";
 				$l_kontaktid = $r_kontakt['email'];
 			}
 
 			$l_retur.="<cbc:ID>".$l_kontaktid."</cbc:ID>\n";
 			$l_retur.=$l_kontaktinfo;
 		} else {
-			if (eregi("^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,3})$", $l_id)) $l_retur.="<cbc:E-Mail>".$l_id."</cbc:E-Mail>\n";
-			$l_retur.="<cbc:ID>".$l_id."</cbc:ID>\n";
+			if (eregi("^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,3})$", $l_id)) {
+		
+				$l_retur.="<cbc:ID>".substr($l_id,0,strpos($l_id,'@'))."</cbc:ID>\n"; # 20140919
+				$l_retur.="<cbc:ElectronicMail>".$l_id."</cbc:ElectronicMail>\n";
+			} else $l_retur.="<cbc:ID>".$l_id."</cbc:ID>\n";
 			if (!strtolower($l_id)=="n/a") $l_retur.="<cbc:Name>".$l_id."</cbc:Name>\n";
 		}
 	}
@@ -608,10 +667,13 @@ function oioubl_vej ($l_addr1="", $l_del="vejnavn") {
 
 	if (ereg("^([^0-9]*) ([0-9].*)$", $l_addr1, $regs)) { # Antager at foerste mellemrum efterfulgt af et tal er husnummeret
 		if ($l_del=="vejnavn") $l_retur=$regs[1];
-		if ($l_del=="husnummer") $l_retur=$regs[2];
+		if ($l_del=="husnummer") {
+			$l_retur=$regs[2];
+			if (!$l_retur) $l_retur=0; #20150922
+		} 
 	} else {
 		if ($l_del=="vejnavn") $l_retur=$l_addr1;
-		if ($l_del=="husnummer") $l_retur="";
+		if ($l_del=="husnummer") $l_retur=0; #20150922
 	}
 	return $l_retur;
 }

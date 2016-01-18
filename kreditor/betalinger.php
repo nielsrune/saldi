@@ -1,5 +1,5 @@
 <?php
-// ---------kreditor/betalinger.php---------------------Patch 3.4.1-----2014.05.30---
+// ---------kreditor/betalinger.php---------------------Patch 3.5.9-----2015.11.04---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -16,9 +16,9 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // -----------------------------------------------------------------------------------
 //
 // 2013.05.22 '' omkring '1' (openpost.udlignet != '1') i søgning, linje 119
@@ -26,6 +26,10 @@
 // 2014.05.30 Tilføjelse af betalingstype SDC K020 - FI-kort 71 (ca)
 // 2014.05.30 Tilføjelse af betalingstype SDC K037 - Udenlandsk overførel MT100 (ca)
 // 2014.05.31 Rettet to forskellige fejl vedr. betalingstyperne SDC 3 og SDC 020 (ca)
+// 2014.06.04 Rettet ERH351 så felterne er korrekte                              (ca)
+// 2014.07.04 Tilføjet info om fejl i betalinger samt mulighed for udskrivning (ca)
+// 2014.07.17 Ændret så alle linjer med fejl vises og ikke kun den sidste (ca)
+// 2015.11.04 Tilpasset feltbredde så siden kan være på skærm (phr) 
 
 @session_start();
 $s_id=session_id();
@@ -135,6 +139,7 @@ if ($find) {
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)){
 		$ordre_id=0;
+#cho "$ordre_id<br>";		
 		$medtag=1;
 		$kladde_id=$r['kladde_id']*1;
 		$bilag_id=$r['bilag_id']*1;
@@ -174,7 +179,7 @@ if ($find) {
 					$kort_ref=trim($kort_ref);
 				} else $kort_ref=$r['betal_id'];	
 			}
-echo "insert into betalinger(bet_type,fra_kto, egen_ref, til_kto, modt_navn, kort_ref, belob, betalingsdato, valuta, bilag_id, ordre_id, liste_id) values ('$erh','$egen_bank','$r[egen_ref]','$modt_konto','$r[modt_navn]','$kort_ref','$belob','$forfaldsdag', '$valuta', '$bilag_id', '$ordre_id','$liste_id')<br>";
+#cho "insert into betalinger(bet_type,fra_kto, egen_ref, til_kto, modt_navn, kort_ref, belob, betalingsdato, valuta, bilag_id, ordre_id, liste_id) values ('$erh','$egen_bank','$r[egen_ref]','$modt_konto','$r[modt_navn]','$kort_ref','$belob','$forfaldsdag', '$valuta', '$bilag_id', '$ordre_id','$liste_id')<br>";
 			db_modify("insert into betalinger(bet_type,fra_kto, egen_ref, til_kto, modt_navn, kort_ref, belob, betalingsdato, valuta, bilag_id, ordre_id, liste_id) values ('$erh','$egen_bank','$r[egen_ref]','$modt_konto','$r[modt_navn]','$kort_ref','$belob','$forfaldsdag', '$valuta', '$bilag_id', '$ordre_id','$liste_id')",__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -183,10 +188,14 @@ $kort_ref=array();
 if ($udskriv) {
 	$q=db_select("select * from betalinger where liste_id=$liste_id",__FILE__ . " linje " . __LINE__);
 	$x=0;
+	$fejl_i_liste=NULL;
 	while ($r=db_fetch_array($q)) {
 		$x++;                                                                                            #$erh[$x],$r['fra_kto'],$r['egen_ref'],$r['til_kto'],$r['kort_ref'],$r['modt_navn'],$r['belob'],$r['valuta'],$r['betalingsdato']
 		list($kort_ref,$k1[$x],$k2[$x],$k3[$x],$k4[$x],$k5[$x],$k6[$x],$k7[$x],$k8[$x])=betalingskontrol($erh[$x],$r['fra_kto'],$r['egen_ref'],$r['til_kto'],$r['kort_ref'],$r['modt_navn'],$r['belob'],$r['valuta'],$r['betalingsdato']);
-		if($k1[$x]||$k2[$x]||$k3[$x]||$k4[$x]||$k5[$x]||$k6[$x]||$k7[$x]||$k8[$x]) $udskriv=NULL;
+echo "<!-- UDDATA for ".$x.": k1:".$k1[$x]." k2:". $k2[$x]." k3:".$k3[$x]." k4:".$k4[$x]." k5:".$k5[$x]." k6:".$k6[$x]." K7:".$k7[$x]." K8:".$k8[$x]. "-->\n";
+		if($k1[$x]||$k2[$x]||$k3[$x]||$k4[$x]||$k5[$x]||$k6[$x]||$k7[$x]||$k8[$x]) {
+			$fejl_i_liste.=fejl_i_betalingslinje($x, $k1[$x], $k2[$x], $k3[$x], $k4[$x], $k5[$x], $k6[$x], $k7[$x], $k8[$x]); # 20140717
+		}
 	}
 }
 if ($udskriv) {
@@ -197,7 +206,7 @@ if ($udskriv) {
 		$kort_ref = $r['kort_ref'];
 		if (substr($r['bet_type'], 0, 3)=="ERH") {
 			if ($r['bet_type']=="ERH351") $kort_ref="71".$kort_ref;
-			$linje="\"$r[bet_type]\",\"$r[fra_kto]\",\"$r[egen_ref]\",\"$r[til_kto]\",,\"00\",\"0\",\"$r[modt_navn]\",\"$r[belob]\",\"$r[betalingsdato]\",\"$kort_ref\",,,,,,,,,\"N\"\r\n";
+			$linje="\"$r[bet_type]\",\"$r[fra_kto]\",\"$r[egen_ref]\",\"$r[til_kto]\",\"$r[modt_navn]\",\"00\",\"0\",,\"".str_replace(".", "", $r['belob'])."\",\"".substr($r['betalingsdato'],0,4).substr($r['betalingsdato'],-2)."\",\"$kort_ref\",,,,,,,,,\"N\"\r\n";
                 } elseif ($r['bet_type']=="SDCK020") { # SDC betalingstype K020 - FI-kort 71 
                         $bet_type=substr($r['bet_type'], 3);
                         $linje=$bet_type.$r['fra_kto'].$r['betalingsdato'];
@@ -220,8 +229,13 @@ if ($udskriv) {
 		fwrite($fp,$linje);
 	}	
 	fclose($fp);
-	print "<tr><td colspan=3 height=200 widht=100%><br></td></tr>";
-	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>";
+	print "<tr><td colspan=3 height=200 widht=100%><br></td></tr>\n";
+	if ( $fejl_i_liste ) {
+		print "<tr><td width='20%'><br /></td><td><b>Advarsel: Fejl i betalinger:</b><br>\n";
+		print $fejl_i_liste;
+		print "</td><td width='20%'><br /></td></tr>\n";
+	}
+	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 } else { 
 	print "<form name=\"betalinger\" action=\"betalinger.php?liste_id=$liste_id\" method=\"post\">";
 	$r=db_fetch_array(db_select("select listenote, bogfort from betalingsliste where id='$liste_id'",__FILE__ . " linje " . __LINE__));
@@ -313,17 +327,17 @@ $q=db_select("select * from betalinger where liste_id=$liste_id order by betalin
 				print "<option>Slet</option>\n";
 				print "</SELECT></span></td>\n";
 				print "
-					<td $k1_bg[$x]><span title=\"$k1[$x]\"><input type=\"text\" style=\"text-align:right\" name=\"fra_kto[$x]\" size=\"25\" value=\"$r[fra_kto]\"></span></td>
-					<td $k2_bg[$x]><span title=\"$k2[$x]\"><input type=\"text\" name=\"egen_ref[$x]\" size=\"60\" value=\"$r[egen_ref]\"></span></td>
-					<td $k3_bg[$x]><span title=\"$k3[$x]\"><input type=\"text\" style=\"text-align:right\" name=\"til_kto[$x]\" size=\"25\" value=\"$r[til_kto]\"></span></td>
-					<td $k4_bg[$x]><span title=\"$k4[$x]\"><input type=\"text\" style=\"text-align:right\" name=\"kort_ref[$x]\" size=\"25\" value=\"$kort_ref[$x]\"></span></td>
-					<td $k5_bg[$x]><span title=\"$k5[$x]\"><input type=\"text\" name=\"modt_navn[$x]\" size=\"40\" value=\"$r[modt_navn]\"></span></td>
-					<td $k6_bg[$x]><span title=\"$k6[$x]\"><input type=\"text\" style=\"text-align:right\" name=\"belob[$x]\" size=\"15\" value=\"$r[belob]\"></span></td>
-					<td $k7_bg[$x]><span title=\"$k7[$x]\"><input type=\"text\" style=\"text-align:right\" name=\"valuta[$x]\" size=\"5\" value=\"$r[valuta]\"></span></td>
-					<td $k8_bg[$x]><span title=\"$k8[$x]\"><input type=\"text\" name=\"betalingsdato[$x]\" size=\"15\" value=\"$r[betalingsdato]\"></span></td>";
+					<td $k1_bg[$x]><span title=\"$k1[$x]\"><input type=\"text\" style=\"text-align:right\" name=\"fra_kto[$x]\" size=\"15px\" value=\"$r[fra_kto]\"></span></td>
+					<td $k2_bg[$x]><span title=\"$k2[$x]\"><input type=\"text\" name=\"egen_ref[$x]\" size=\"30px\" value=\"$r[egen_ref]\"></span></td>
+					<td $k3_bg[$x]><span title=\"$k3[$x]\"><input type=\"text\" style=\"text-align:right\" name=\"til_kto[$x]\" size=\"15px\" value=\"$r[til_kto]\"></span></td>
+					<td $k4_bg[$x]><span title=\"$k4[$x]\"><input type=\"text\" style=\"text-align:left\" name=\"kort_ref[$x]\" size=\"30px\" value=\"$kort_ref[$x]\"></span></td>
+					<td $k5_bg[$x]><span title=\"$k5[$x]\"><input type=\"text\" name=\"modt_navn[$x]\" size=\"30px\" value=\"$r[modt_navn]\"></span></td>
+					<td $k6_bg[$x]><span title=\"$k6[$x]\"><input type=\"text\" style=\"text-align:right\" name=\"belob[$x]\" size=\"15px\" value=\"$r[belob]\"></span></td>
+					<td $k7_bg[$x]><span title=\"$k7[$x]\"><input type=\"text\" style=\"text-align:right\" name=\"valuta[$x]\" size=\"5px\" value=\"$r[valuta]\"></span></td>
+					<td $k8_bg[$x]><span title=\"$k8[$x]\"><input type=\"text\" style=\"text-align:right\" name=\"betalingsdato[$x]\" size=\"10px\" value=\"$r[betalingsdato]\"></span></td>";
 				if ($r['ordre_id'])	print "<td align=right onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../debitor/ordre.php?id=$r[ordre_id]','k_ordre','width=800,height=400,scrollbars=1,resizable=1')\"><span title=\"Se modtagelse i nyt vindue\"><u>M:$r2[modtagelse]</u></span></td>";
 				else print "<td align=right onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:kaskl=window.open('../finans/kassekladde.php?kladde_id=$r2[kladde_id]','kaskl','width=800,height=400,scrollbars=1,resizable=1')\"><span title=\"Se bilag i nyt vindue\"><u>B:$r2[bilag]</u></span></td>";		
-				print	"<td><span title=\"Slet linje fra liste\"><input type=\"checkbox\" name=\"slet[$x]\" size=\"15\"></span></td>";
+				print	"<td><span title=\"Slet linje fra liste\"><input type=\"checkbox\" name=\"slet[$x]\"></span></td>";
 				print "</tr>";
 				print "<input type=\"hidden\" name=\"id[$x]\" value=\"$r[id]\">";
 				print "<input type=\"hidden\" name=\"antal\" value=\"$x\">";
@@ -396,6 +410,23 @@ function betalingskontrol($erh,$fra_kto,$egen_ref,$til_kto,$kort_ref,$modt_navn,
 	if (!checkdate($md, $dag, $aar)) $k8[$x]="ugyldig dato - skal v&aelig;re i formatet ddmmyyyy";
 	#	echo "$kort_ref,$kommentar -- ";
 	return(array($kort_ref,$k1[$x],$k2[$x],$k3[$x],$k4[$x],$k5[$x],$k6[$x],$k7[$x],$k8[$x],$k9[$x]));
+}
+
+function fejl_i_betalingslinje($linjenr_fejl, $erh_fejl,$fra_kto_fejl,$egen_ref_fejl,$til_kto_fejl,$kort_ref_fejl,$modt_navn_fejl,$belob_fejl,$valuta_fejl,$betalingsdato_fejl)
+{
+	$retur="Fejl i linje ".$linjenr_fejl.":";
+	if($erh_fejl) $retur.=" ".$erh_fejl.".";
+	if($fra_kto_fejl) $retur.=" ".$fra_kto_fejl.".";
+	if($egen_ref_fejl) $retur.=" ".$egen_ref_fejl.".";
+	if($til_kto_fejl) $retur.=" ".$til_kto_fejl.".";
+	if($kort_ref_fejl) $retur.=" ".$kort_ref_fejl.".";
+	if($modt_navn_fejl) $retur.=" ".$modt_navn_fejl.".";
+	if($belob_fejl) $retur.=" ".$belob_fejl.".";
+	if($valuta_fejl) $retur.=" ".$valuta_fejl.".";
+	if($betalingsdato_fejl) $retur.=" ".$betalingsdato_fejl.".";
+	$retur.="<br />\n";
+	
+	return $retur;
 }
 
 ?>

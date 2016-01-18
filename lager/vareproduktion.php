@@ -1,5 +1,5 @@
 <?php
-// ------------lager/vareproduktion.php------------lap 3.2.9------2012-10-16---
+// ------------lager/vareproduktion.php------------lap 3.5.2------2015-02-17---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -16,12 +16,13 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 //
 // 2012.10.16 Fejl i lagertræk v. varesalg efter produktionsordre med antal != 0. Søg 21121016
+// 2014.12.23 Div ændringer i forbindelse med indførelse at aut lager.
 
 
 @session_start();
@@ -70,6 +71,10 @@ if (!$fejl && $antal>=1) {
 			list($antal,$id,$ny_beholdning)=samlevare($id[0],$ny_beholdning[0]);
 			$kontonr=array();
 		}
+		$r=db_fetch_array(db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__));
+		$startaar=$row['box2']*1;
+		($startaar >= '2015')?$aut_lager='on':$aut_lager=NULL;
+		
 		transaktion('begin');
 		$l=0;
 		$afgangsum=0;
@@ -79,7 +84,7 @@ if (!$fejl && $antal>=1) {
 			$ny_beholdning[$x]*=1;
 
 			if ($r=db_fetch_array(db_select("select varenr,kostpris,beholdning,gruppe from varer where id = '$id[$x]'",__FILE__ . " linje " . __LINE__))) {
-				$varenr[$x]=addslashes($r['varenr']);
+				$varenr[$x]=db_escape_string($r['varenr']);
 				$beholdning[$x]=$r['beholdning'];
 
 				$regulering[$x]=$ny_beholdning[$x]-$beholdning[$x];
@@ -116,24 +121,25 @@ if (!$fejl && $antal>=1) {
 			}
 		}
 		$tjeksum=0;
-		for($x=0;$x<count($kontonr);$x++) {
+		if (!$aut_lager) {
+			for($x=0;$x<count($kontonr);$x++) {
+				db_modify("insert into transaktioner (kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,valuta,valutakurs,ordre_id)
+					values
+					($kontonr[$x],'$bilag','$transdate','$transdate','$logtime','Produktionsordre: $varenr[0] ($brugernavn)','0','$amount[$x]','','0','0','0','0','1','100','0')",__FILE__ . " linje " . __LINE__);
+				$tjeksum+=$amount[$x];
+			}
+			if (abs($tjeksum-$afgangsum)>0.01) {
+				print "<BODY onLoad=\"javascript:alert('Ubalance i posteringssum -kontakt Saldi teamet på tlf. 4690 2208')\">";
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=varekort.php?id=$id[0]\">";
+				exit;
+			}
 			db_modify("insert into transaktioner (kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,valuta,valutakurs,ordre_id)
 				values
-				($kontonr[$x],'$bilag','$transdate','$transdate','$logtime','Produktionsordre: $varenr[0] ($brugernavn)','0','$amount[$x]','','0','0','0','0','1','100','0')",__FILE__ . " linje " . __LINE__);
-			$tjeksum+=$amount[$x];
-		}
-		if (abs($tjeksum-$afgangsum)>0.01) {
-			print "<BODY onLoad=\"javascript:alert('Ubalance i posteringssum -kontakt Saldi teamet på tlf. 4690 2208')\">";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=varekort.php?id=$id[0]\">";
-			exit;
-		}
-		db_modify("insert into transaktioner (kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,valuta,valutakurs,ordre_id)
-			values
-		('$tilgang','$bilag','$transdate','$transdate','$logtime','Produktionsordre: $varenr[0] ($brugernavn)','$afgangsum','0','','0','0','0','0','1','100','0')",__FILE__ . " linje " . __LINE__);
-
-		transaktion('commit');
+			('$tilgang','$bilag','$transdate','$transdate','$logtime','Produktionsordre: $varenr[0] ($brugernavn)','$afgangsum','0','','0','0','0','0','1','100','0')",__FILE__ . " linje " . __LINE__);
+		}	
 		$diff=transtjek();
 		if ($diff > 1) print "<BODY onLoad=\"javascript:alert('Ubalance i transaktioner -kontakt Saldi teamet på tlf. 4690 2208')\">";
+		else transaktion('commit'); 
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=varekort.php?id=$id[0]\">";
 	} else {
 		print "<table><tbody>";

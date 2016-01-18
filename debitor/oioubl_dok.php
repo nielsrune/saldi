@@ -2,28 +2,30 @@
 @session_start();
 $s_id=session_id();
 
-// ---------debitor/oioubl_dok.php----patch 3.2.9---2012-09-20---------
+// ---------debitor/oioubl_dok.php----patch 3.6.1---2015-12-23---------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af "The Free Software Foundation", enten i version 2
-// af denne licens eller en senere version, efter eget valg.
+// som er udgivet af The Free Software Foundation; enten i version 2
+// af denne licens eller en senere version efter eget valg.
 // Fra og med version 3.2.2 dog under iagttagelse af følgende:
 // 
 // Programmet må ikke uden forudgående skriftlig aftale anvendes
 // i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
-//
-// Dette program er udgivet med haab om at det vil vaere til gavn,
+// 
+// Programmet er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
 // GNU General Public Licensen for flere detaljer.
+// 
+// En dansk oversaettelse af licensen kan laeses her:
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// En dansk oversaetelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
-//
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2003-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
+
 // 2012.09.20 Tilføjet integration med ebconnect
+// 2015.12.23 Rettet addslashes til db_escape_string
 
 #$testdok="Tester"; # Skal slettes naar test er faerdig
 $css="../css/standard.css";
@@ -99,7 +101,7 @@ if ($r['box8']) {
 		system ($kommando);
 		$langt_filnavn="../temp/$db/".$printfilnavn;
 		if (file_exists($langt_filnavn)) {
-			$printfilnavn=addslashes($printfilnavn);
+			$printfilnavn=db_escape_string($printfilnavn);
 			print "<BODY onLoad=\"javascript:alert('$printfilnavn er afsendt')\">";
 		} else {
 			print "<BODY onLoad=\"javascript:alert('Afsendelse af $printfilnavn fejlet')\">";

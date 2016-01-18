@@ -1,5 +1,5 @@
 <?php
-// -----------includes/finansfunk.php-------lap 3.0.2----2010-05-27-----
+// ----------- includes/finansfunk.php ------------- lap 3.5.6 -- 2015-06-22 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -12,15 +12,18 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2010 DANOSOFT ApS
-// ----------------------------------------------------------------------
+// Copyright (c) 2004-2015 DANOSOFT ApS
+// ----------------------------------------------------------------------------
+//
+// 20150622 CA  funktionen periodeoverskrifter returnere overskrifterne som CSV
 
 if (!function_exists('periodeoverskrifter')) {
 	function periodeoverskrifter ($periodeantal, $periode_aar, $periode_md, $periode_dag=1, $periode_laengde="regnskabsmaaned", $regnskabsaar="") {
 		# Periodelængder kan være dag, uge, maaned, regnskabsmaaned eller kvartal (eller blot det foerste bogstav)
 		setlocale(LC_TIME, "da_DK","da","da_DK.utf8");
+		$retur=""; # 20150622
 		$trin = 1;
 		$periode_laengde = strtolower(substr($periode_laengde, 0, 1));
 		if ( $periode_laengde == substr("uge", 0, 1) ) {
@@ -74,7 +77,9 @@ if (!function_exists('periodeoverskrifter')) {
 			}
 	
 			print "<td title=\"$periode_lang\" align=\"right\"><b>$periode_kort</b></td>\n";
+			$retur.="\"$periode_kort\";"; # 20150622
 		}
+		return $retur; # 20150622
 	}
 
 }

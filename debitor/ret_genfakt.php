@@ -1,5 +1,5 @@
 <?php
-// ----------debitor/ret_genfakt.php----------lap 3.4.0-----2014-04-26-------
+// ----------debitor/ret_genfakt.php----------lap 3.6.1-----2015-12-23-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,7 +18,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 16.08.2012 søg 20120816 - Udskriv_til i rødt hvis stamkort siger pbs og dette ikke er valgt.
@@ -29,6 +29,8 @@
 // 15.03.2014 Søg procent - Tilføjet procent alle steder hvor der er 'rabat' i forbindelse med indførelse af procentfakturering
 // 22.04.2014 Fejl v opdatering $r[procenttillag] rettet til $procenttillag[$y] Søg 20140422
 // 2014.04.26 - Indsat '' foran varenr[$x] i kald til opret_ordrelinje grundet ændring i funktionen (PHR - Danosoft) Søg 20140426 
+// 2015.01.06 Formularprint kaldes ikke længere som popup. 20150106
+// 2015.12.23 oioubl kan nu også genfaktureres - søg oioubl
 
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
@@ -52,6 +54,7 @@ include("../includes/std_func.php");
 include("../includes/ordrefunc.php");
 include("../includes/var2str.php");
 include("../includes/forfaldsdag.php");
+include("../includes/oioublfunk.php");
 
 $incl_moms='';
 $art='DO';
@@ -184,6 +187,10 @@ if ($_GET['ordreliste']) {
 			$nextfakt=usdate($genfakt[$x]);
 			($udskriv_til[$x]=='email')?$mail_fakt='on':$mail_fakt='';
 			($udskriv_til[$x]=='PBS_BS' || $udskriv_til[$x]=='PBS_FI')?$pbs='on':$pbs='';
+			if ($udskriv_til[$x]=='oioubl') {
+				if($art=="DO") $oioubl='faktura';
+				else $oioubl='kreditnota';
+			} else $oioubl=NULL;
 			db_modify("update ordrer set firmanavn='$firmanavn[$x]',fakturadate='$fakturadate',nextfakt='$nextfakt',email='$email[$x]',udskriv_til='$udskriv_til[$x]',mail_fakt='$mail_fakt',projekt='$projekt[$x]',betalingsbet='$betalingsbet[$x]',betalingsdage='$betalingsdage[$x]',procenttillag='$procenttillag[$x]' where id='$ordreliste[$x]'",__FILE__ . " linje " . __LINE__);
 			if ($nextfakt<=$fakturadate) $fejltekst="Genfaktureringsdato skal v&aelig;re efter fakturadato ($firmanavn[$x])";
 			if (!$fejltekst && strstr($udskriv_til[$x],'PBS')) {
@@ -192,7 +199,7 @@ if ($_GET['ordreliste']) {
 				$b_m*=1;
 				$n_m=date("m")+1;
 				if ($n_m > 12) $n_m = 1; # 20121212 
-			if ($b_m != $n_m) $fejltekst="Betalingsdato skal v&aelig;re i $n_m. m&aring;ned til PBS ($firmanavn[$x])";
+				if ($b_m != $n_m) $fejltekst="Betalingsdato skal v&aelig;re i $n_m. m&aring;ned til PBS ($firmanavn[$x])";
 			}
 			if (!$fejltekst) {
 				list ($year, $month, $day) = explode ('-', $fakturadate);
@@ -256,7 +263,11 @@ if ($_GET['ordreliste']) {
 		for ($x=0 ; $x<=$ordreantal ; $x++) {
 			if ($ordreliste[$x]) {
 				($udskriv_til[$x]=='email')?$mail_fakt='on':$mail_fakt='';  #20130117
-				($udskriv_til[$x]=='PBS_BS' || $udskriv_til[$x]=='PBS_FI')?$pbs='on':$pbs='';  #20130117
+				(strstr($udskriv_til[$x],'PBS'))?$pbs='on':$pbs='';  #20130117
+				if ($udskriv_til[$x]=='oioubl') {
+					if($art=="DO") $oioubl='faktura';
+					else $oioubl='kreditnota';
+				} else $oioubl=NULL;
 				$y++;
 				transaktion('begin');
 				levering($ordreliste[$x],'on','on');
@@ -265,8 +276,51 @@ if ($_GET['ordreliste']) {
 					if ($pbs) {
 						pbsfakt($ordreliste[$x]);
 						$y--;  #20130117
+					}	elseif ($oioubl) {
+						$printfilnavn="doktype-faktura_dokid-".$ordreliste[$x].".xml";
+						$fp=fopen("../temp/$db/$printfilnavn","w");
+						fwrite($fp,oioubldoc_faktura($ordreliste[$x],'faktura',NULL));
+						fclose($fp);
+#echo "'oioubl_dok.php?id=$ordreliste[$x]&doktype=$oioubl&genfakt=1' ,'' ,'$jsvars'<br>";
+#						print "<BODY onLoad=\"JavaScript:window.open('oioubl_dok.php?id=$ordreliste[$x]&doktype=$oioubl&genfakt=1' ,'' ,'$jsvars');\">\n";
+						$r=db_fetch_array(db_select("select box8 from grupper where art = 'DIV' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
+						if ($r['box8']) {
+							list($oiourl,$oiobruger,$oiokode)=explode(chr(9),$r['box8']);
+							if ($oiourl&&$oiobruger&&$oiokode) {
+								$fp=fopen("../temp/$db/oioftpscript1.$ordreliste[$x]","w");
+								if ($fp) {
+									fwrite ($fp, "set confirm-close no\nput $printfilnavn\nbye\n");
+								}
+								fclose($fp);
+								$fp=fopen("../temp/$db/oioftplog.$ordreliste[$x]","w");
+								fwrite ($fp, "cd ../temp/$db\n\r$exec_path/ncftp ftp://$oiobruger:$oiokode@$oiourl\n\r");
+								fclose($fp);
+								$kommando="cd ../temp/$db\n$exec_path/ncftp ftp://".$oiobruger.":".$oiokode."@".$oiourl." < oioftpscript1.$ordreliste[$x] >> oioftplog.$ordreliste[$x]\n";
+#								echo "<br>A ".str_replace("\n","<br>",$kommando)."<br>";
+								system ($kommando);
+								unlink("../temp/$db/$printfilnavn"); 
+								$fp=fopen("../temp/$db/oioftpscript2.$ordreliste[$x]","w");
+								if ($fp) fwrite ($fp, "set confirm-close no\nget $printfilnavn\nbye\n");
+								fclose($fp);
+								$kommando="cd ../temp/$db\n$exec_path/ncftp ftp://".$oiobruger.":".$oiokode."@".$oiourl." < oioftpscript2.$ordreliste[$x] >> oioftplog.$ordreliste[$x]\n";
+#								echo "<br>B ".str_replace("\n","<br>",$kommando)."<br>";
+								system ($kommando);
+								if (file_exists("../temp/$db/$printfilnavn")) {
+									unlink("../temp/$db/$printfilnavn"); 
+									#echo 'unlink(\"../temp/$db/$printfilnavn\")';
+									print "<tr><td>$printfilnavn overført til $oiourl</td></tr>";
+								} else {
+									print "<BODY onLoad=\"javascript:alert('Afsendelse af $printfilnavn fejlet tjek brugernavn og adgangskode til ftp hos ebConnect')\">";
+									exit;
+								}
+							} else {
+								print "<tr><td>Gem <a href=\"../temp/$db/$printfilnavn\">$printfilnavn</a> på din computer og upload til din udbyder</td></td>"; 
+							}
+							$y--;
+						}
 					}	elseif ($udskriv) $udskriv.=",$ordreliste[$x]";
-						else $udskriv="$ordreliste[$x]";
+					else $udskriv="$ordreliste[$x]"; 
+#xit;
 					transaktion('commit');
 				} elseif ($ordreantal) {
 					if (strpos($svar,'invoicedate prior to')) $tekst="Genfaktureringsdato før fakturadato";
@@ -278,7 +332,8 @@ if ($_GET['ordreliste']) {
 			}
 		}
 		if ($udskriv) {
-			print "<BODY onLoad=\"JavaScript:window.open('formularprint.php?id=-1&ordre_antal=$y&skriv=$udskriv&formular=4' , '' , ',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes, location=1');\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=formularprint.php?id=-1&returside=ordreliste.php&ordre_antal=$y&skriv=$udskriv&formular=4\">";
+#			print "<BODY onLoad=\"JavaScript:window.open('formularprint.php?id=-1&ordre_antal=$y&skriv=$udskriv&formular=4' , '' , ',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes, location=1');\">";
 			exit;
 		}
 	}

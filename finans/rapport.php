@@ -1,6 +1,6 @@
 <?php
 
-// -------------finans/rapport.php-------lap 3.3.4------2013-09-29-------
+// ------------ finans/rapport.php --------------- lap 3.6.2 --- 2016-01-16 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -17,15 +17,24 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 20120927 Hvis budgettal indsat og konto lukket blev konto alligevel vist under budget
 // 20130210 Break ændret til break 1
 // 20130918	Diverse tilretninger til simulering - Søg $simulering
 // 20130919	Fejl i søgefunktion ved opdelte projektnumre. Søg 20130919
+// 20140729 Listeangivelse ændret fra kvartal til måned - ca. Søg 20140729
+// 20140825 Resultatkonto viste årssaldo uanset om den var valgt periode. PHR Søg 20140825
+// 20140909 Resultat fra resultatkto kom ikke med i sum. PHR Søg 20140909
+// 20150104 Tilføjet dynamisk vagerværdi - Søg /*aut_lager*/
+// 20150125 Fejl i lagerberegning i statusrapport- lagetræk blev lagt til værdi, ombyttet + & - - Søg 20150125
+// 20150408 Fejl i lagerberegning i statusrapport- medtog sidste dag i foregående md - tilføjet 'start'/'slut' til find_lagervaerdi. Søg find_lagervaerdi
+// 20150825 Transaktioner med ens bilag, tekst og kontonummer blev samlet sammen til linje. Ved ikke hvorfor men det gør det svært at kontrollere bank
+// 20151001 Sat fast bredde på felter i overskrifter.
+// 20160116	Diverse i forbindelse med indførelse af valutakonti	Søg 'valuta'
 
 $title="Finansrapport";
 @session_start();
@@ -69,12 +78,12 @@ if ($_POST){
 	$projekt_fra=if_isset($_POST['projekt_fra']);
 	$projekt_til=if_isset($_POST['projekt_til']);
 	$simulering=if_isset($_POST['simulering']);
-	
+	$lagerbev=if_isset($_POST['lagerbev']);
 
 #cho "prj_navn_fra $prj_navn_fra -> $projekt_fra<br>";
 	if ( stristr($rapportart,"Listeangivelse") ) {
-			$kvartal=preg_replace('/[^0-9.]*/','',$rapportart);
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=listeangivelse.php?kvartal=$kvartal\">";
+			$listeperiode=preg_replace('/[^0-9.]*/','',$rapportart); # 20140729 afsnit 1
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=listeangivelse.php?listeperiode=$listeperiode\">";
 			exit;
 	}	
 
@@ -188,6 +197,8 @@ if ($_POST){
 	$projekt_fra=if_isset($_GET['projekt_fra']);
 	$projekt_til=if_isset($_GET['projekt_til']);
 	$simulering=if_isset($_GET['simulering']);
+	$lagerbev=if_isset($_GET['lagerbev']);
+	
 }
 $md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
 
@@ -210,9 +221,9 @@ if ($maaned_fra && (!$aar_fra||!$aar_til)) {
 	list ($aar_til, $maaned_til) = explode(" ", $maaned_til);
 }
 #cho "186 $projekt_fra<br>";
-$submit($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering);
+$submit($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering,$lagerbev);
 ##################################################################################################
-function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering){
+function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering,$lagerbev){
 	global $connection;
 	global $brugernavn;
 	global $top_bund;
@@ -221,12 +232,13 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	global $revisor;
 	global $db_encode;
 	global $menu;
-
+	
 	$regnaar=$regnaar*1; #fordi den er i tekstformat og skal vaere numerisk
 	$konto_fra=$konto_fra*1;
 	$konto_til=$konto_til*1;
 	
 	($simulering)?$simulering="checked":$simulering=NULL;
+	($lagerbev)?$lagerbev="checked":$lagerbev=NULL;
 	if (!$regnaar) {
 #cho "select regnskabsaar from brugere where brugernavn = '$brugernavn'<br>";
 		$query = db_select("select regnskabsaar from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
@@ -361,7 +373,11 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	if ($rapportart!="momsangivelse") print "<option title=\"".findtekst(514,$sprog_id)."\" value=\"momsangivelse\">".findtekst(520,$sprog_id)."</option>\n";
 	listeangivelser($regnaar, $rapportart, "alle andre");
 
-	print "</select></td><tr>\n\n";
+	print "</select></td>\n";
+	print "<td>Medtag lagerbevægelser&nbsp;";
+	print "<input type=\"checkbox\" name=\"lagerbev\" $lagerbev></td>";  
+	print "</tr>\n";
+	
 	if ($antal_afd) {
 		print "<tr><td>  Afdeling</td><td><select name=afd>\n";
 		print "<option>$afd</option>\n";
@@ -506,7 +522,7 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 }
 # endfunc forside
 #################################################################################################
-function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering) {
+function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering,$lagerbev) {
 
 	global $connection;
 	global $top_bund;
@@ -562,13 +578,34 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	##
 	$regnaarstart= $startaar. "-" . $startmaaned . "-" . '01';
 	
-	if ($aar_fra) {$startaar=$aar_fra;}
-	if ($aar_til) {$slutaar=$aar_til;}
-	if ($maaned_fra) {$startmaaned=$maaned_fra;}
-	if ($maaned_til) {$slutmaaned=$maaned_til;}
-	if ($dato_fra) {$startdato=$dato_fra;}
-	if ($dato_til) {$slutdato=$dato_til;}
+	($startaar >= '2015')?$aut_lager='on':$aut_lager=NULL;
 
+	if ($aut_lager && $lagerbev) {
+		$x=0;
+		$varekob=array();
+		$q=db_select("select box1,box2,box3 from grupper where art = 'VG' and box8 = 'on'",__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) {
+			if ($r['box1'] && $r['box2'] && !in_array($r['box3'],$varekob)) {
+				$varelager_i[$x]=$r['box1'];
+				$varelager_u[$x]=$r['box2'];
+				$varekob[$x]=$r['box3'];
+				$x++;
+			}
+		}
+	}
+
+	
+	
+	if ($aar_fra) $startaar=$aar_fra;
+	if ($aar_til) $slutaar=$aar_til;
+	if ($maaned_fra) $startmaaned=$maaned_fra;
+	if ($maaned_til) $slutmaaned=$maaned_til;
+	if ($dato_fra) $startdato=$dato_fra;
+	if ($dato_til) $slutdato=$dato_til;
+
+	$startdato*=1;
+	if ($startdato < 10) $startdato='0'.$startdato; 
+	
 	while (!checkdate($startmaaned,$startdato,$startaar)) {
 		$startdato=$startdato-1;
 		if ($startdato<28) break 1;
@@ -582,12 +619,11 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	$regnstart = $startaar. "-" . $startmaaned . "-" . $startdato;
 	$regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 
-
 #	print "  <a accesskey=L href=\"rapport.php?rapportart=Kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&afd=$afd\">Luk</a><br><br>";
 
 	print "<table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 	if ($menu=='T') {
-		$leftbutton="<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering\" accesskey=\"L\">LUK</a>";
+		$leftbutton="<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\" accesskey=\"L\">LUK</a>";
 		$rightbutton="";
 		include("../includes/topmenu.php");
 	} elseif ($menu=='S') {
@@ -595,7 +631,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	} else {
 		print "<tr><td colspan=\"6\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering\">Luk</a></td>";
+		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">Luk</a></td>";
 		print "<td width=\"80%\" $top_bund> Rapport - kontokort </td>";
 		print "<td width=\"10%\" $top_bund><br></td>";
 		print "</tbody></table>"; #B slut
@@ -649,17 +685,41 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 			}
 			$dim = $dim."and lower(projekt) LIKE '$tmp' ";
 		}
-	}	
+	}
+	$x=0;
+	$valdate=array();
+	$valkode=array();
+	$q=db_select("select * from valuta order by gruppe,valdate desc");
+	while ($r=db_fetch_array($q)) {
+		$y=$x-1;	
+		if ((!$x) || $r['gruppe']!=$valkode[$x] || $valdate[$x]>=$regnstart) {
+			$valkode[$x]=$r['gruppe'];
+			$valkurs[$x]=$r['kurs'];
+			$valdate[$x]=$r['valdate'];
+			$x++;
+		}
+	}
 	$x=0;
 	$qtxt="select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
 #cho "$qtxt<br>";
-	$q= db_select("$qtxt",__FILE__ . " linje " . __LINE__);
+	$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
 		$kontonr[$x]=$row['kontonr']*1;
 		$kontobeskrivelse[$x]=$row['beskrivelse'];
+		$kontotype[$x]=$row['kontotype'];
 		$kontomoms[$x]=$row['moms'];
-		if (!$dim && $row['kontotype']=="S") $primo[$x]=afrund($row['primo'],2);
+		$kontovaluta[$x]=$row['valuta'];
+		$kontokurs[$x]=$row['valutakurs'];
+		if (!$dim && $kontotype[$x]=="S") $primo[$x]=afrund($row['primo'],2);
 		else $primo[$x]=0;
+		if ($primo[$x] && $kontovaluta[$x]) {
+			for ($y=0;$y<=count($valkode);$y++){
+				if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnstart) {
+					$primokurs[$x]=$valkurs[$y];
+					break 1;
+				}
+			}
+		} else $primokurs[$x]=100;
 		$x++;
 	}
 	$ktonr=array();
@@ -680,11 +740,32 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 			}
 		}
 	}
+	if ($aut_lager && $lagerbev) { 
+		for ($i=0;$i<count($varekob);$i++) { 
+			if (!in_array($varekob[$i],$ktonr)) {
+				$ktonr[$x]=$varekob[$i];
+				$x++;
+			}
+		}
+		for ($i=0;$i<count($varelager_i);$i++) { 
+			if (!in_array($varelager_i[$i],$ktonr)) {
+				$ktonr[$x]=$varelager_i[$i];
+				$x++;
+			}
+		}
+		for ($i=0;$i<count($varelager_u);$i++) { 
+			if (!in_array($varelager_u[$i],$ktonr)) {
+				$ktonr[$x]=$varelager_u[$i];
+				$x++;
+			}
+		}
+	}
+	
 	sort($kontonr);
 	$kontosum=0;
 	$founddate=false;
 	print "<tr><td colspan=6><hr></td></tr>";
-	print "<tr><td width=10%>  Dato</td><td width=10%>  Bilag </td><td width=50%>  Tekst </td><td width=10% align=right>  Debet </td><td width=10% align=right>  Kredit </td><td width=10% align=right>  Saldo </td></tr>";
+	print "<tr><td width=\"100px\">Dato</td><td width=\"60px\">Bilag</td><td>Tekst</td><td width=\"100px\" align=\"right\">Debet</td><td width=\"100px\" align=\"right\">Kredit</td><td width=\"100px\" align=\"right\">Saldo</td></tr>";
 	
 	for ($x=0;$x<count($kontonr);$x++){
 		$linjebg=$bgcolor5;
@@ -699,13 +780,15 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 			}
 			$query = db_select("select debet, kredit from simulering where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)){
-			 	$kontosum= $kontosum+afrund($row['debet'],2)-afrund($row['kredit'],2);
+			 	$kontosum=$kontosum+afrund($row['debet'],2)-afrund($row['kredit'],2);
 			}
-			$tmp=dkdecimal($kontosum);
-			if (!$dim) print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>$tmp </td></tr>";
+			if ($primokurs[$x]) $tmp=$kontosum*100/$primokurs[$x];
+			else $tmp=$kontosum;
+			if (!$dim) print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>".dkdecimal($tmp)."</td></tr>";
 			$print=1;
 			$tr=0;
 			$transdate=array();
+
 			$query = db_select("select * from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)){
 				$transdate[$tr]=$row['transdate'];
@@ -713,12 +796,201 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 				$beskrivelse[$tr]=$row['beskrivelse'];
 				$debet[$tr]=$row['debet'];
 				$kredit[$tr]=$row['kredit'];
+				$transvaluta[$tr]=$row['valuta'];
+				if ($kontovaluta[$x]) {
+					for ($y=0;$y<=count($valkode);$y++){
+#cho "$valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]<br>";
+						if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]) {
+							$transkurs[$tr]=$valkurs[$y];
+							break 1;
+						}
+					}
+				} else $transkurs[$tr]=100; 
+#cho "TK1 $transkurs[$tr]<br>";
 				$tr++;
 			}
+
+			if ($lagerbev && $aut_lager && (in_array($kontonr[$x],$varekob) || in_array($kontonr[$x],$varelager_i) || in_array($kontonr[$x],$varelager_u))) {
+				$z=0;
+				$lager=array();
+				$gruppe=array();
+				$q=db_select("select kodenr,box1,box2 from grupper where art = 'VG' and box8 = 'on' and (box1 = '$kontonr[$x]' or box2 = '$kontonr[$x]' or box3 = '$kontonr[$x]')",__FILE__ . " linje " . __LINE__);
+				while ($r=db_fetch_array($q)) {
+					if ($r['box1']) {
+#						$lager_i[$z]=$r['box1'];
+#						$lager_u[$z]=$r['box2'];
+						$gruppe[$z]=$r['kodenr'];
+						$z++;
+					}
+				} 
+				$y=0;
+				$vare_id=array();
+				for ($z=0;$z<count($gruppe);$z++) {
+					$q=db_select("select id,kostpris from varer where gruppe = '$gruppe[$z]' order by id",__FILE__ . " linje " . __LINE__);
+					while ($r=db_fetch_array($q)) {
+						$vare_id[$y]=$r['id'];
+						$kostpris[$y]=$r['kostpris'];
+						$y++;
+					}
+				}
+				$z=0;
+				$fakturadate=array();
+				$kobsdebet=array();
+				$kobskredit=array();
+#echo "select vare_id,ordre_id,antal,fakturadate from batch_kob where fakturadate >= '$regnstart' and fakturadate <= '$regnslut' order by fakturadate,vare_id<br>";				
+				$q=db_select("select vare_id,ordre_id,antal,fakturadate from batch_kob where fakturadate >= '$regnstart' and fakturadate <= '$regnslut' order by fakturadate,vare_id",__FILE__ . " linje " . __LINE__);
+				while ($r=db_fetch_array($q)) {
+					if ($z && isset($fakturadate[$z]) && $r['fakturadate']==$fakturadate[$z]) {
+						for ($y=0;$y<count($vare_id);$y++) {
+							if($r['vare_id']==$vare_id[$y]) {
+								if($kontotype[$x]=='D')	{ 
+#echo "oid $r[ordre_id] $r[antal] * $kostpris[$y]<br>";
+									if ($r['antal']>0) $kobskredit[$z]+=$r['antal']*$kostpris[$y];
+									else $kobsdebet[$z]-=$r['antal']*$kostpris[$y];
+									} elseif(in_array($kontonr[$x],$varelager_i)) {
+									if ($r['antal']>0) $kobsdebet[$z]+=$r['antal']*$kostpris[$y];
+									else $kobskredit[$z]-=$r['antal']*$kostpris[$y];
+								}
+							}
+						}
+					} else {
+						for ($y=0;$y<count($vare_id);$y++) {
+							if($r['vare_id']==$vare_id[$y]) {
+								if($kontotype[$x]=='D')	{ 
+#echo "oid $r[ordre_id] $r[antal] * $kostpris[$y] ".$r['antal']*$kostpris[$y]."<br>";
+									$fakturadate[$z]=$r['fakturadate'];
+									if ($r['antal']>0) {
+										$kobskredit[$z]=$r['antal']*$kostpris[$y];
+										$kobsdebet[$z]=0;
+									} else {
+										$kobsdebet[$z]=$r['antal']*$kostpris[$y]*-1;
+										$kobskredit[$z]=0;
+									}
+									$z++;
+								} elseif(in_array($kontonr[$x],$varelager_i)) {
+									$fakturadate[$z]=$r['fakturadate'];
+									if ($r['antal']>0) {
+										$kobsdebet[$z]=$r['antal']*$kostpris[$y];
+										$kobskredit[$z]=0;
+									} else {
+										$kobskredit[$z]=$r['antal']*$kostpris[$y]*-1;
+										$kobsdebet[$z]=0;
+									}
+									$z++;
+								}
+							}
+						}
+					}
+				}
+				$z=0;
+				$salgsdate=array();
+				$salgsdebet=array();
+				$salgkredit=array();
+				$q=db_select("select ordre_id,vare_id,antal,salgsdate from batch_salg where salgsdate >= '$regnstart' and salgsdate <= '$regnslut' order by salgsdate,vare_id",__FILE__ . " linje " . __LINE__);
+				while ($r=db_fetch_array($q)) {
+					if ($z && isset($salgsdate[$z]) && $r['salgsdate']==$salgsdate[$z]) {
+						for ($y=0;$y<count($vare_id);$y++) {
+							if($r['vare_id']==$vare_id[$y]) {
+								if($kontotype[$x]=='D')	{ 
+									if ($r['antal']>0) $salgsdebet[$z]+=$r['antal']*$kostpris[$y];
+									else $salgskredit[$z]-=$r['antal']*$kostpris[$y];
+								} elseif(in_array($kontonr[$x],$varelager_u)) {
+									if ($r['antal']>0) $salgskredit[$z]+=$r['antal']*$kostpris[$y];
+									else $salgsdebet[$z]-=$r['antal']*$kostpris[$y];
+								}
+							}
+						}
+					} else {
+						for ($y=0;$y<count($vare_id);$y++) {
+							if($r['vare_id']==$vare_id[$y]) {
+								if($kontotype[$x]=='D')	{ 
+									$salgsdate[$z]=$r['salgsdate'];
+									if ($r['antal']>0) {
+										$salgsdebet[$z]=$r['antal']*$kostpris[$y];
+										$salgskredit[$z]=0;
+									} else {
+										$salgskredit[$z]=$r['antal']*$kostpris[$y]*-1;
+										$salgsdebet[$z]=0;
+									}
+									$z++;
+								} elseif(in_array($kontonr[$x],$varelager_u)) { 
+									$salgsdate[$z]=$r['salgsdate'];
+									if ($r['antal']>0) {
+										$salgskredit[$z]=$r['antal']*$kostpris[$y];
+										$salgsdebet[$z]=0;
+									} else {
+										$salgsdebet[$z]=$r['antal']*$kostpris[$y]*-1;
+										$salgskredit[$z]=0;
+									}
+									$z++;
+								}
+							}
+						}
+					}
+				}
+				$dato=$regnstart;
+				$y=0;
+				$tr=0;
+				$kd=0;
+				$sd=0;
+				$trd=array();
+				while ($dato<=$regnslut) {
+				while (isset($transdate[$tr]) && $transdate[$tr]==$dato) {
+						$trd[$y]=$dato;
+						$bil[$y]=$bilag[$tr];
+						$besk[$y]=$beskrivelse[$tr];
+						$deb[$y]=$debet[$tr];
+						$kre[$y]=$kredit[$tr];
+						$tr++;
+						$y++;
+					}
+					while (isset($fakturadate[$kd]) && $fakturadate[$kd]==$dato) {
+						$trd[$y]=$dato;
+						$bil[$y]=0;
+						$besk[$y]="lagertransaktion - Køb";
+						$deb[$y]=$kobsdebet[$kd];
+						$kre[$y]=$kobskredit[$kd];
+						$kd++;
+						$y++;
+					}
+					while (isset($salgsdate[$sd]) && $salgsdate[$sd]==$dato) {
+						$trd[$y]=$dato;
+						$bil[$y]=0;
+						$besk[$y]="lagertransaktion - Salg";
+						$deb[$y]=$salgsdebet[$sd];
+						$kre[$y]=$salgskredit[$sd];
+						$sd++;
+						$y++;
+					}
+					list($yy,$mm,$dd)=explode("-",$dato);
+					$dd++;
+					if (!checkdate($mm,$dd,$yy)) {
+						$dd=1;
+						$mm++;
+						if ($mm>12) {
+							$mm=1;
+							$yy++;
+						}
+					}
+					$dd*=1;
+					$mm*=1;
+					if (strlen($dd)<2) $dd='0'.$dd;
+					if (strlen($mm)<2) $mm='0'.$mm;
+					$dato=$yy."-".$mm."-".$dd;
+				}
+				for ($y=0;$y<count($trd);$y++){
+					$transdate[$y]=$trd[$y];
+					$bilag[$y]=$bil[$y];
+					$beskrivelse[$y]=$besk[$y];
+					$debet[$y]=$deb[$y];
+					$kredit[$y]=$kre[$y];
+				}
+			}
+			$sim_transdate=array();
 			if ($simulering) {
 				$sim=0;
 				$sim_kontonr=array();
-				$q = db_select("select * from simulering where kontonr=$kontonr[$x] and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
+				$q = db_select("select * from simulering where kontonr='$kontonr[$x]' and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)){
 					$sim_id[$sim]=$r['id'];
 					$sim_transdate[$sim]=$r['transdate'];
@@ -727,52 +999,67 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 					$sim_beskrivelse[$sim]=$r['beskrivelse'];
 					$sim_debet[$sim]=$r['debet'];
 					$sim_kredit[$sim]=$r['kredit'];
-#					if (!in_array($sim_transdate[$sim],$transdate)) {
 					$a=0;
-					while($a<=count($transdate) and $sim_transdate[$sim]>$transdate[$a]) {
-#						for ($a=0;$a<=count($transdate);$a++) {
-#cho "$a Pre start $sim_transdate[$sim] | $transdate[$a]<br>";	
-#							if ($sim_transdate[$sim]<$transdate[$a]) {
-#cho "$a Starter $sim_transdate[$sim]>$transdate[$a]<br>";	
-#								break 1;
-#							}
-$a++;
-}
-#					}	
-						for ($b=count($transdate);$b>$a;$b--) {
-
-#cho "$b 1: $transdate[$b] ".$transdate[$b-1]." $sim_transdate[$sim]<br>";
-							$transdate[$b]=$transdate[$b-1];
-#cho "$b 2: $transdate[$b] ".$transdate[$b-1]." $sim_transdate[$sim]<br>";
-							$bilag[$b]=$bilag[$b-1];
-							$beskrivelse[$b]=$beskrivelse[$b-1];
-							$debet[$b]=$debet[$b-1];
-							$kredit[$b]=$kredit[$b-1];
-						}
-						
-						$transdate[$b]=$sim_transdate[$sim];
-#cho "$b 3: $transdate[$b] ".$transdate[$b-1]." $sim_transdate[$sim]<br>";
-						$bilag[$b]=$sim_bilag[$sim];
-						$beskrivelse[$b]=$sim_beskrivelse[$sim]."(Simuleret)";
-						$debet[$b]=$sim_debet[$sim];
-						$kredit[$b]=$sim_kredit[$sim];
-						$sim_transdate[$sim]=NULL;
-#						break 1;
-					
+					while($a<=count($transdate) and $sim_transdate[$sim]>$transdate[$a]) $a++;
+					for ($b=count($transdate);$b>$a;$b--) {
+						$transdate[$b]=$transdate[$b-1];
+						$bilag[$b]=$bilag[$b-1];
+						$beskrivelse[$b]=$beskrivelse[$b-1];
+						$debet[$b]=$debet[$b-1];
+						$kredit[$b]=$kredit[$b-1];
+					}
+					$transdate[$b]=$sim_transdate[$sim];
+					$bilag[$b]=$sim_bilag[$sim];
+					$beskrivelse[$b]=$sim_beskrivelse[$sim]."(Simuleret)";
+					$debet[$b]=$sim_debet[$sim];
+					$kredit[$b]=$sim_kredit[$sim];
+					$sim_transdate[$sim]=NULL;
 					$sim++;
 				}
-			}	
+			}
+/* 20150825
 			for ($tr=0;$tr<count($transdate)+count($sim_transdate);$tr++) {		
 				if ($transdate[$tr]) {
+					if ($bilag[$tr]==$bilag[$tr+1] && $transdate[$tr]==$transdate[$tr+1] && $beskrivelse[$tr]==$beskrivelse[$tr+1]) {
+						$debet[$tr+1]+=$debet[$tr];
+						$kredit[$tr+1]+=$kredit[$tr];
+						$debet[$tr]=0;
+						$kredit[$tr]=0;
+					}
+				}
+			}
+*/			
+			for ($tr=0;$tr<count($transdate)+count($sim_transdate);$tr++) {
+				if ($transdate[$tr] && ($debet[$tr] || $kredit[$tr])) {
 					($linjebg!=$bgcolor5)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 					print "<tr bgcolor=\"$linjebg\"><td>  ".dkdato($transdate[$tr])." </td><td>$bilag[$tr] </td><td>$kontonr[$x] : $beskrivelse[$tr] </td>";
-					$tmp=dkdecimal($debet[$tr]);
-					print "<td align=right>$tmp </td>";
-					$tmp=dkdecimal($kredit[$tr]);
-					print "<td align=right>$tmp </td>";
+					if ($kontovaluta[$x]) {
+						if ($transvaluta[$tr]=='-1') $tmp=0;
+						else $tmp=$debet[$tr]*100/$transkurs[$tr];
+						$title="DKK ".dkdecimal($debet[$tr]*1)." Kurs: ".dkdecimal($transkurs[$tr]);
+					} else {
+						$tmp=$debet[$tr];
+						$title=NULL;
+					}
+					print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp)."</td>";
+					if ($kontovaluta[$x]) {
+						if ($transvaluta[$tr]=='-1') $tmp=0;
+						else $tmp=$kredit[$tr]*100/$transkurs[$tr];
+						$title="DKK ".dkdecimal($kredit[$tr]*1)." Kurs: ".dkdecimal($transkurs[$tr]);
+					} else {
+						$tmp=$kredit[$tr];
+						$title=NULL;
+					}
+					print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp)."</td>";
 					$kontosum=$kontosum+afrund($debet[$tr],2)-afrund($kredit[$tr],2);
-					$tmp=dkdecimal($kontosum);
-					print "<td align=right>$tmp </td></tr>";
+					if ($kontovaluta[$x]) {
+						$tmp=$kontosum*100/$transkurs[$tr];
+						$title="DKK ".dkdecimal($kontosum)." Kurs: ".dkdecimal($transkurs[$tr]);
+					} else {
+						$tmp=$kontosum;
+						$title=NULL;
+					}
+					print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp)."</td></tr>";
 				} 
 /*
 				if (in_array($kontonr[$x],$sim_kontonr) && ($transdate[$tr]!=$transdate[$tr+1])) {
@@ -798,7 +1085,7 @@ $a++;
 	print "</tbody></table>";
 }
 #################################################################################################
-function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering) {
+function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering,$lagerbev) {
 
 	global $connection;
 	global $top_bund;
@@ -851,12 +1138,12 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 	##
 	$regnaarstart= $startaar. "-" . $startmaaned . "-" . '01';
 	
-	if ($aar_fra) {$startaar=$aar_fra;}
-	if ($aar_til) {$slutaar=$aar_til;}
-	if ($maaned_fra) {$startmaaned=$maaned_fra;}
-	if ($maaned_til) {$slutmaaned=$maaned_til;}
-	if ($dato_fra) {$startdato=$dato_fra;}
-	if ($dato_til) {$slutdato=$dato_til;}
+	if ($aar_fra) $startaar=$aar_fra;
+	if ($aar_til) $slutaar=$aar_til;
+	if ($maaned_fra) $startmaaned=$maaned_fra;
+	if ($maaned_til) $slutmaaned=$maaned_til;
+	if ($dato_fra) $startdato=$dato_fra;
+	if ($dato_til) $slutdato=$dato_til;
 
 	while (!checkdate($startmaaned,$startdato,$startaar)) {
 		$startdato=$startdato-1;
@@ -892,7 +1179,7 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 
 	print "<table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 	if ($menu=='T') {
-		$leftbutton="<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering\" accesskey=\"L\">LUK</a>";
+		$leftbutton="<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\" accesskey=\"L\">LUK</a>";
 		$rightbutton="";
 		include("../includes/topmenu.php");
 	} elseif ($menu=='S') {
@@ -900,7 +1187,7 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 	} else {
 		print "<tr><td colspan=\"6\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort_moms&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering\">Luk</a></td>";
+		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort_moms&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">Luk</a></td>";
 		print "<td width=\"80%\" $top_bund> Rapport - kontokort men moms</td>";
 		print "<td width=\"10%\" $top_bund><br></td>";
 		print "</tbody></table>"; #B slut
@@ -951,7 +1238,21 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 			}
 			$dim = $dim."and lower(projekt) LIKE '$tmp' ";
 		}
-	}	
+	}
+	$x=0;
+	$valdate=array();
+	$valkode=array();
+	$q=db_select("select * from valuta order by gruppe,valdate desc");
+	while ($r=db_fetch_array($q)) {
+		$y=$x-1;	
+		if ((!$x) || $r['gruppe']!=$valkode[$x] || $valdate[$x]>=$regnstart) {
+			$valkode[$x]=$r['gruppe'];
+			$valkurs[$x]=$r['kurs'];
+			$valdate[$x]=$r['valdate'];
+			$x++;
+		}
+	}
+
 	$x=0;$kontonr=array();
 	$qtxt="select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
 #cho "$qtxt<br>";
@@ -960,11 +1261,20 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 		if (!in_array($row['kontonr'],$kontonr) && (trim($row['moms']) || $simulering)) {
 			$x++;
 			$kontonr[$x]=$row['kontonr']*1;
-#cho "$kontonr[$x]<br>";
 			$kontobeskrivelse[$x]=$row['beskrivelse'];
 			$kontomoms[$x]=$row['moms'];
+			$kontovaluta[$x]=$row['valuta'];
+			$kontokurs[$x]=$row['valutakurs'];
 			if (!$dim && $row['kontotype']=="S") $primo[$x]=afrund($row['primo'],2);
 			else $primo[$x]=0;
+			if ($primo[$x] && $kontovaluta[$x]) {
+				for ($y=0;$y<=count($valkode);$y++){
+					if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnstart) {
+						$primokurs[$x]=$valkurs[$y];
+						break 1;
+					}
+				}
+			} else $primokurs[$x]=100;
 		}
 	}
 	$kontoantal=$x;
@@ -985,7 +1295,7 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 
 	$founddate=false;
 	print "<tr><td colspan=6><hr></td></tr>";
-	print "<tr><td width=10%>  Dato</td><td width=10%>  Bilag </td><td width=50%>  Tekst </td><td width=10% align=right>  Bel&oslash;b </td><td width=10% align=right>  Moms </td><td width=10% align=right>  Incl. moms </td></tr>";
+	print "<tr><td width=\"100px\">Dato</td><td width=\"60px\">Bilag</td><td>Tekst</td><td width=\"100px\" align=\"right\">Bel&oslash;b</td><td width=\"80px\" align=\"right\"> Moms</td><td width=\"100px\" align=\"right\">Incl. moms</td></tr>";
 	
 	for ($x=1; $x<=$kontoantal; $x++){
 		$linjebg=$bgcolor5;
@@ -1017,6 +1327,15 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 				$sim_moms[$sim]=$r['moms'];
 #cho "S $sim_kontonr[$sim]<br>";
 				$sim++;
+				if ($kontovaluta[$x]) {
+					for ($y=0;$y<=count($valkode);$y++){
+#cho "$valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]<br>";
+						if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $sim_transdate[$tr]) {
+							$sim_transkurs[$tr]=$valkurs[$y];
+							break 1;
+						}
+					}
+				} else $sim_transkurs[$tr]=100; 
 			}	
 			$tr=0;$transdate=array();
 			$q = db_select("select * from transaktioner where kontonr='$kontonr[$x]' and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
@@ -1030,7 +1349,15 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 				$moms[$tr]=$r['moms'];
 				$logdate[$tr]=$r['logdate'];
 				$logtime[$tr]=$r['logtime'];
-
+				$transvaluta[$tr]=$row['valuta'];
+				if ($kontovaluta[$x]) {
+					for ($y=0;$y<=count($valkode);$y++){
+						if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]) {
+							$transkurs[$tr]=$valkurs[$y];
+							break 1;
+						}
+					}
+				} else $transkurs[$tr]=100; 
 				$tr++;
 			}
 			for ($tr=0;$tr<count($transdate);$tr++) {		
@@ -1059,13 +1386,34 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 #cho "$kontonr[$x]==$sim_kontonr[$sim] && $transdate[$tr] == $sim_transdate[$sim]<br>";
 						if ($kontonr[$x]==$sim_kontonr[$sim] && $transdate[$tr] == $sim_transdate[$sim]) {
 							print "<tr bgcolor=\"$linjebg\"><td>  ".dkdato($sim_transdate[$sim])." </td><td>$sim_bilag[$sim] </td><td>$sim_kontonr[$sim] : $sim_beskrivelse[$sim] (simuleret) </td>";
-							$tmp=dkdecimal($sim_debet[$sim]);
-							print "<td align=right>$tmp </td>";
-							$tmp=dkdecimal($sim_kredit[$sim]);
-							print "<td align=right>$tmp </td>";
+							if ($kontovaluta[$x]) {
+								if ($transvaluta[$tr]=='-1') $tmp=0;
+								else $tmp=$sim_debet[$sim]*100/$transkurs[$tr];
+								$title="DKK ".dkdecimal($sim_debet[$sim]*1)." Kurs: ".dkdecimal($transkurs[$tr]);
+							}	else {
+								$tmp=$sim_debet[$sim];
+								$title=NULL;
+							}
+							print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp)."</td>";
+							if ($kontovaluta[$x]) {
+								if ($transvaluta[$tr]=='-1') $tmp=0;
+								else $tmp=$sim_kredit[$sim]*100/$transkurs[$tr];
+								$title="DKK ".dkdecimal($sim_kredit[$sim]*1)." Kurs: ".dkdecimal($transkurs[$tr]);
+							}	else {
+								$tmp=$sim_kredit[$sim];
+								$title=NULL;
+							}
+							print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp)."</td>";
 							$kontosum=$kontosum+afrund($sim_debet[$sim],2)-afrund($sim_kredit[$sim],2);
-							$tmp=dkdecimal($kontosum);
-							print "<td align=right>$tmp </td></tr>";
+							if ($kontovaluta[$x]) {
+								if ($transvaluta[$tr]=='-1') $tmp=0;
+								else $tmp=$kontosum*100/$transkurs[$tr];
+								$title="DKK ".dkdecimal($kontosum*1)." Kurs: ".dkdecimal($transkurs[$tr]);
+							}	else {
+								$tmp=$kontosum;
+								$title=NULL;
+							}
+							print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp)."</td>";
 						}
 					}
 				}
@@ -1076,7 +1424,7 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 	print "</tbody></table>";
 }
 #################################################################################################
-function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering) {
+function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering,$lagerbev) {
 	print "<!--Function regnskab start-->\n";
 	global $connection;
 	global $top_bund;
@@ -1141,15 +1489,15 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		if ($slutaar>$startaar && $maaned_fra>$maaned_til) $slutmd=$slutmd+12;
 	}
 
-	if (strlen($startmaaned)==1){$startmaaned="0".$startmaaned;}
-	if (strlen($slutmaaned)==1){$slutmaaned="0".$slutmaaned;}
+	if (strlen($startmaaned)==1) $startmaaned="0".$startmaaned;
+	if (strlen($slutmaaned)==1) $slutmaaned="0".$slutmaaned;
 
 	$regnaarstart= $startaar. "-" . $startmaaned . "-" . '01';
 
-	if ($maaned_fra) {$startmaaned=$maaned_fra;}
-	if ($maaned_til) {$slutmaaned=$maaned_til;}
-	if ($dato_fra) {$startdato=$dato_fra;}
-	if ($dato_til) {$slutdato=$dato_til;}
+	if ($maaned_fra) $startmaaned=$maaned_fra;
+	if ($maaned_til) $slutmaaned=$maaned_til;
+	if ($dato_fra) $startdato=$dato_fra;
+	if ($dato_til) $slutdato=$dato_til;
 
 	while (!checkdate($startmaaned,$startdato,$startaar)) {
 		$startdato=$startdato-1;
@@ -1165,9 +1513,39 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	$regnstart = $aar_fra. "-" . $startmaaned . "-" . $startdato;
 	$regnslut = $aar_til . "-" . $slutmaaned . "-" . $slutdato;
 
+	($startaar >= '2015')?$aut_lager='on':$aut_lager=NULL;
+
+	if ($aut_lager && $lagerbev) {
+		$x=0;
+		$varekob=array();
+		$q=db_select("select box1,box2,box3 from grupper where art = 'VG' and box8 = 'on'",__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) {
+			if ($r['box1'] && $r['box2'] && !in_array($r['box3'],$varekob)) {
+				$varelager_i[$x]=$r['box1'];
+				$varelager_u[$x]=$r['box2'];
+#cho "VL $varelager_u[$x]<br>";
+				$varekob[$x]=$r['box3'];
+#cho "VK $varekob[$x]<br>";
+				$x++;
+			}
+		}
+	}
+	$x=0;
+	$valdate=array();
+	$valkode=array();
+	$q=db_select("select * from valuta order by gruppe,valdate desc");
+	while ($r=db_fetch_array($q)) {
+		$y=$x-1;	
+		if ((!$x) || $r['gruppe']!=$valkode[$x] || $valdate[$x]>=$regnstart) {
+			$valkode[$x]=$r['gruppe'];
+			$valkurs[$x]=$r['kurs'];
+			$valdate[$x]=$r['valdate'];
+			$x++;
+		}
+	}
 	print "<table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 	if ($menu=='T') {
-		$leftbutton="<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering\" accesskey=\"L\">LUK</a>";
+		$leftbutton="<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\" accesskey=\"L\">LUK</a>";
 		$rightbutton="";
 		include("../includes/topmenu.php");
 	} elseif ($menu=='S') {
@@ -1175,7 +1553,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	} else {
 		print "<tr><td colspan=\"$cols6\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering\">Luk</a></td>";
+		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">Luk</a></td>";
 		print "<td width=\"80%\" $top_bund> Rapport - $rapportart </td>";
 		print "<td width=\"10%\" $top_bund><br></td>";
 		print "</tbody></table>"; #B slut
@@ -1240,6 +1618,19 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		$kto_aar[$x]=0;
 		$kto_periode[$x]=0;
 		$vis_kto[$x]=0;
+		$kontovaluta[$x]=$row['valuta'];
+		$kontokurs[$x]=$row['valutakurs'];
+		if (!$dim && $kontotype[$x]=="S") $primo[$x]=afrund($row['primo'],2);
+		else $primo[$x]=0;
+		if ($primo[$x] && $kontovaluta[$x]) {
+			for ($y=0;$y<=count($valkode);$y++){
+				if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $slutdato) {
+					$kontokurs[$x]=$valkurs[$y];
+					break 1;
+				}
+			}
+		} else $primokurs[$x]=100;
+		
 	}
 	$kontoantal=$x;
 	$dim='';
@@ -1262,6 +1653,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 			$dim = $dim."and lower(projekt) LIKE '$tmp' ";
 		}
 	}
+
 	$x=0;
 	for ($x=1; $x<=$kontoantal; $x++) {
 		if ($r=db_fetch_array(db_select("select * from transaktioner where transdate>='$regnaarstart' and transdate<='$regnslut' $dim and kontonr=$ktonr[$x]",__FILE__ . " linje " . __LINE__))) {
@@ -1278,6 +1670,11 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 				$vis_kto[$x]=1;
 			}
 		}
+		if ($aut_lager && $lagerbev) {
+			if (in_array($kontonr[$x],$varekob)) $vis_kto[$x]=1; 
+			if (in_array($kontonr[$x],$varelager_i)) $vis_kto[$x]=1; 
+			if (in_array($kontonr[$x],$varelager_u)) $vis_kto[$x]=1; 
+		}
 		if ($kontotype[$x]=='R') $vis_kto[$x]=1;
 	}
 	if ($rapportart=='budget') {
@@ -1292,12 +1689,15 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	for ($x=1; $x<=$kontoantal; $x++) {
 		$kto_aar[$x]=0;
 		$kto_periode[$x]=0;  # Herunder tilfoejes primovaerdi.
-			if (($rapportart=='balance'&&!$afd && !$projekt_fra && !$ansat_fra) && ($r2 = db_fetch_array(db_select("select primo from kontoplan where regnskabsaar='$regnaar' and kontonr=$ktonr[$x] and kontotype='S'",__FILE__ . " linje " . __LINE__)))) {
-				$kto_aar[$x]=afrund($r2['primo'],2);
-			}
+		if (($rapportart=='balance'&&!$afd && !$projekt_fra && !$ansat_fra) && ($r2 = db_fetch_array(db_select("select primo from kontoplan where regnskabsaar='$regnaar' and kontonr=$ktonr[$x] and kontotype='S'",__FILE__ . " linje " . __LINE__)))) {
+			
+			$kto_aar[$x]=afrund($r2['primo'],2);
+		}
 		$query = db_select("select * from transaktioner where transdate>='$regnaarstart' and transdate<='$regnslut' and kontonr='$ktonr[$x]' $dim",__FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
-			if ($row['transdate']>=$regnstart) $kto_periode[$x]=$kto_periode[$x]+afrund($row['debet'],2)-afrund($row['kredit'],2);
+			if ($row['transdate']>=$regnstart) {
+				$kto_periode[$x]=$kto_periode[$x]+afrund($row['debet'],2)-afrund($row['kredit'],2);
+			}
 			if ($rapportart!='budget') {
 				$kto_aar[$x]=$kto_aar[$x]+afrund($row['debet'],2)-afrund($row['kredit'],2);
 			}
@@ -1311,6 +1711,30 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 				if ($rapportart!='budget') {
 					$kto_aar[$x]=$kto_aar[$x]+afrund($row['debet'],2)-afrund($row['kredit'],2);
 				}
+			}
+		}
+		if ($aut_lager && $lagerbev) {
+			if (in_array($ktonr[$x],$varekob)) {
+				$l_a_primo[$x]=find_lagervaerdi($ktonr[$x],$regnaarstart,'start');
+				$l_a_sum[$x]=find_lagervaerdi($ktonr[$x],$regnslut,'slut');
+				$l_p_primo[$x]=find_lagervaerdi($ktonr[$x],$regnstart,'start');
+#cho "LAP $l_a_primo[$x] $l_a_sum[$x] $ktonr[$x]<br>";
+			# Varekøb (debet) debiteres lager primo og krediteres lager saldo. Dvs tallet mindskes hvis lager øges 
+				$kto_aar[$x]+=$l_a_primo[$x]; 
+				$kto_aar[$x]-=$l_a_sum[$x];		
+				$kto_periode[$x]+=$l_p_primo[$x];
+				$kto_periode[$x]-=$l_a_sum[$x];
+			}
+			if (in_array($ktonr[$x],$varelager_i) || in_array($ktonr[$x],$varelager_u)) {
+				$l_a_primo[$x]=find_lagervaerdi($ktonr[$x],$regnaarstart,'start');
+				$l_a_sum[$x]=find_lagervaerdi($ktonr[$x],$regnslut,'slut');
+				$l_p_primo[$x]=find_lagervaerdi($ktonr[$x],$regnstart,'start');
+#cho "LAP $l_a_primo[$x] $l_a_sum[$x] $ktonr[$x]<br>";
+# Varelager (debet) krediteres lager primo og og debiteres lager saldo.  Dvs tallet øges hvis lager øges
+				$kto_aar[$x]-=$l_a_primo[$x]; #20150125 + næste 3 linjer
+				$kto_aar[$x]+=$l_a_sum[$x];
+				$kto_periode[$x]-=$l_p_primo[$x];
+				$kto_periode[$x]+=$l_a_sum[$x];
 			}
 		}
 	}
@@ -1331,17 +1755,43 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 				$kto_antal++;
 				$ktonr[$kto_antal]=$kontonr[$x];
 				$kto_aar[$kto_antal]=$primo[$x];
+#				if (in_array($ktonr[$kto_antal],$varekob)) {
+#			$l_a_primo[$kto_antal]=find_lagervaerdi($ktonr[$kto_antal],$varekob,$regnstart);
+#			$l_a_sum[$kto_antal]=find_lagervaerdi($ktonr[$kto_antal],$varekob,$regnslut);
+#				$l_p_primo[$x]=find_lagervaerdi($kontonr[$x],$varekob,$regnaarstart);
+#			$kto_aar[$kto_antal]-=$l_a_primo[$kto_antal];
+#			$kto_aar[$kto_antal]+=$l_a_sum[$kto_antal];
+#				$periodesum[$x]-=$l_p_primo[$x];
+#				$periodesum[$x]+=$l_a_sum[$x]; 
+#		}
+			}
+		}
+	}
+	for ($x=1; $x<=$kontoantal; $x++) { # Her fanges konti med lagerrelation & primovaerdi og ingen bevaegelser i perioden.
+		if (in_array($kontonr[$x], $varelager_i) || in_array($kontonr[$x], $varelager_u)) {
+			if (in_array($kontonr[$x], $ktonr)) {
+				$kto_antal++;
+				$ktonr[$kto_antal]=$kontonr[$x];
+				$kto_aar[$kto_antal]=0;
 			}
 		}
 	}
 
 	for ($x=1; $x<=$kontoantal; $x++) {
 		if ($kontotype[$x]=='R') {
-			$aarsum[$x]=$saldo[$x];
-			$periodesum[$x]=$saldo[$x];
-			$kto_aar[$x]=$saldo[$x];
-			$kto_periode[$x]=$saldo[$x];
+		for ($y=1; $y<=$kontoantal; $y++) { #20140825
+			if ($ktonr[$y]==$fra_kto[$x]) {
+				$aarsum[$x]=$aarsum[$y];
+				$periodesum[$x]=$periodesum[$y];
+				$kto_aar[$x]=$aarsum[$x]; #20140909 rettet fra = $kto_aar[$y] 
+				$kto_periode[$x]=$periodesum[$x]; #20140909 rettet fra = $kto_periode[$y]
+			}
 		}
+#			$aarsum[$x]=$saldo[$x];
+#			$periodesum[$x]=$saldo[$x];
+#			$kto_aar[$x]=$saldo[$x];
+#			$kto_periode[$x]=$saldo[$x];
+	}
 
 	if (!isset($periodesum[$x])) $periodesum[$x]=0;
 		for ($y=1; $y<=$kto_antal; $y++) {
@@ -1372,29 +1822,74 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 				$tmp = kontobemaerkning($kontobeskrivelse[$x]);
 				if (!$budget) print "<td><br></td>";
 				print "<td $tmp colspan=\"$cols3\"><b> $kontobeskrivelse[$x] </b></td>";
-				$tmp=dkdecimal($periodesum[$x]);
-				print "<td align=\"right\"><b>$tmp </b></td>";
-				$tmp=dkdecimal($aarsum[$x]);
-				print "<td align=\"right\"><b>$tmp </b></td>";
+				if ($kontovaluta[$x]) {
+					for ($y=0;$y<=count($valkode);$y++){
+						if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $slutdate) {
+							$transkurs[$x]=$valkurs[$y];
+							break 1;
+						}
+					}
+					$tmp=$periodesum[$x]*100/$kontokurs[$y];
+					$title="DKK ".dkdecimal($periodesum[$x])." Kurs: ".dkdecimal($kontokurs[$x]);
+				} else {
+					$tmp=$periodesum[$x];
+					$title=NULL;
+				}
+				print "<td align=\"right\" title=\"$title\"><b>".dkdecimal($tmp)."</b></td>";
+				if ($kontovaluta[$x]) {
+					$tmp=$aarsum[$x]*100/$kontokurs[$x];
+					$title="DKK ".dkdecimal($aarsum[$x])." Kurs: ".dkdecimal($kontokurs[$x]);
+				} else {
+					$tmp=$aarsum[$x];
+					$title=NULL;
+				}
+				print "<td align=\"right\" title=\"$title\"><b>".dkdecimal($tmp)."</b></td>";
 				if ($rapportart=='budget') {
-					if ($aarsum[$x]) $tmp=dkdecimal(($periodesum[$x]-$aarsum[$x])*100/$aarsum[$x]);
-					else $tmp="--";
-					print "<td align=right><b>$tmp%</b></td>";
+					if ($kontovaluta[$x]) {
+						$tmp=$aarsum[$x]*100/$kontokurs[$x];
+						$title="DKK ".dkdecimal($aarsum[$x])." Kurs: ".dkdecimal($kontokurs[$x]);
+					} else {
+						if ($aarsum[$x]) $tmp=($periodesum[$x]-$aarsum[$x])*100/$aarsum[$x];
+						else $tmp="--";
+						$title=NULL;
+					}
+					print "<td align=\"right\" title=\"$title\"><b> $tmp%</b></td>";
 				}
 				print "<tr><td colspan=\"$cols6\"><hr></td></tr>";
 			} else {
+				if (in_array($kontonr[$x],$varekob)) {
+					$title="Heraf på lager: ".dkdecimal($l_a_sum[$x]-$l_p_primo[$x]);
+				} else $title='';
 				($linjebg!=$bgcolor5)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 				print "<tr bgcolor=\"$linjebg\"><td>$kontonr[$x]</td>";
 				$tmp = kontobemaerkning($kontobeskrivelse[$x]);
 				print "<td $tmp colspan=\"3\">$kontobeskrivelse[$x]</td>";
-				$tmp=dkdecimal($periodesum[$x]);
-				print "<td align=right>$tmp </td>";
-				$tmp=dkdecimal($aarsum[$x]); #aar til dato
-				print "<td align=right>$tmp</td>";
+				if ($kontovaluta[$x]) {
+					$tmp=$periodesum[$x]*100/$kontokurs[$x];
+					$title="DKK ".dkdecimal($periodesum[$x])." Kurs: ".dkdecimal($kontokurs[$x]);
+				} else {
+					$tmp=$periodesum[$x];
+					$title=NULL;
+				}
+				print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp)."</td>";
+				if ($kontovaluta[$x]) {
+					$tmp=$aarsum[$x]*100/$kontokurs[$x];
+					$title="DKK ".dkdecimal($aarsum[$x])." Kurs: ".dkdecimal($kontokurs[$x]);
+				} else {
+					$tmp=$aarsum[$x];
+					$title=NULL;
+				}
+				#$tmp=dkdecimal($aarsum[$x]); #aar til dato
+				print "<td align=\"right\" title=\"$title\">".dkdecimal($tmp)."</td>";
 				if ($rapportart=='budget') {
-					if ($aarsum[$x]) $tmp=dkdecimal(($periodesum[$x]-$aarsum[$x])*100/$aarsum[$x]);
-					else $tmp="--";
-					print "<td align=right>$tmp%</td>"; #afvigelse fra budget
+					if ($kontovaluta[$x] && $aarsum[$x]) {
+						$tmp=(($periodesum[$x]-$aarsum[$x])*100/$aarsum[$x])*100/$kontokurs[$x];
+						$title="DKK ".dkdecimal($periodesum[$x])." Kurs: ".dkdecimal($kontokurs[$x]);
+					} elseif ($aarsum[$x]) {
+						$tmp=($periodesum[$x]-$aarsum[$x])*100/$aarsum[$x];
+						$title=NULL;
+					}	else $tmp="--";
+					print "<td align=\"right\">".dkdecimal($tmp)."%</td>"; #afvigelse fra budget
 				}
 				print "</tr>";
 			}
@@ -1405,7 +1900,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	print "<!--Function regnskab slut-->\n";
 }
 #################################################################################################
-function regnskab0($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering) 
+function regnskab0($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering,$lagerbev) 
 {
 	global $connection;
 	global $top_bund;
@@ -1496,7 +1991,7 @@ function regnskab0($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 
 	print "<table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 	if ($menu=='T') {
-		$leftbutton="<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering\" accesskey=\"L\">LUK</a>";
+		$leftbutton="<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\" accesskey=\"L\">LUK</a>";
 		$rightbutton="";
 		include("../includes/topmenu.php");
 	} elseif ($menu=='S') {
@@ -1504,7 +1999,7 @@ function regnskab0($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	} else {
 		print "<tr><td colspan=\"$cols6\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering\">Luk</a></td>";
+		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">Luk</a></td>";
 		print "<td width=\"80%\" $top_bund> Rapport - $rapportart </td>";
 		print "<td width=\"10%\" $top_bund><br></td>";
 		print "</tbody></table>"; #B slut
@@ -1585,7 +2080,6 @@ function regnskab0($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 		}
 	}	
 	
-#cho "select * from transaktioner where transdate>='$regnaarstart' and transdate<='$regnslut' $dim order by kontonr<br>";		
 	$query = db_select("select * from transaktioner where transdate>='$regnaarstart' and transdate<='$regnslut' $dim order by kontonr",__FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 		if (!in_array($row['kontonr'], $ktonr)) { # Her fanges konto med bevaegelser i perioden.
@@ -1680,7 +2174,7 @@ function regnskab0($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	print "</tbody></table>";
 }
 #################################################################################################
-function momsangivelse ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering)
+function momsangivelse ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering,$lagerbev)
 {
 	global $connection;
 	global $top_bund;
@@ -1757,7 +2251,7 @@ function momsangivelse ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 
 	print "<table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 		if ($menu=='T') {
-		$leftbutton="<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering\" accesskey=\"L\">LUK</a>";
+		$leftbutton="<a title=\"Klik her for at komme til forsiden af rapporter\" href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\" accesskey=\"L\">LUK</a>";
 		$rightbutton="";
 		include("../includes/topmenu.php");
 	} elseif ($menu=='S') {
@@ -1765,7 +2259,7 @@ function momsangivelse ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 	} else {
 		print "<tr><td colspan=\"6\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering\">Luk</a></td>";
+		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">Luk</a></td>";
 		print "<td width=\"80%\" $top_bund> Rapport - ".ucfirst($rapportart)."</td>";
 		print "<td width=\"10%\" $top_bund><br></td>";
 		print "</tbody></table>"; #B slut
@@ -1916,17 +2410,18 @@ function momsangivelse ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 		print "</tbody></table>";
 	} else {
 		print "<BODY onLoad=\"javascript:alert('Rapportspecifikation ikke defineret (Indstillinger -> Moms)')\">";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering\">";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">";
 	}
 }
 
 function kontobemaerkning ( $l_kontonavn ) {
+	$retur=NULL;
 	if (strstr( $l_kontonavn, "RESULTAT")) {
 		$retur = "title=\"Negativt resultat betyder overskud. Positivt resultat betyder underskud.\"";
 	} elseif ($l_kontonavn=="Balancekontrol") {
 		$retur = "title=\"Balancekontrollen viser det forel&oslash;bige eller periodens resultat, n&aring;r regnskabet ikke er afsluttet. Positivt viser et overskud. Negativt et underskud.\"";
 	}
-	return $retur;
+	return($retur);
 }
 
 function momsrubrik($rubrik_konto, $rubrik_navn, $regnaar, $regnstart, $regnslut) {
@@ -1948,69 +2443,39 @@ function momsrubrik($rubrik_konto, $rubrik_navn, $regnaar, $regnstart, $regnslut
 		return;
 }
 
+# Funktionen ændret fra kvartal til måned. 20140729 start afsnit 2 
 function listeangivelser ($regnaar, $rapportart, $option_type) {
-#	print "<option>Rap.art: ".$rapportart."</option>\n";
-  $query = db_select("select box1, box2, box3, box4 from grupper where art = 'RA' and kodenr = '$regnaar' order by box2, box1 desc",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select box1, box2, box3, box4 from grupper where art = 'RA' and kodenr = '$regnaar' order by box2, box1 desc",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	$x=1;
 
-#$row['box1']="02";
-#$row['box2']="2010";
-#$row['box3']="01";
-#$row['box4']="2011";
-
-	# Foerste kvartal
-#	print "<option>Aar: ".$row['box1']." og ".$regnaar."</option>";
-	$kvartal_aar[$x] = $row['box2']*1;
-	$kvartal_fuld[$x] = "nej";
-	if ( $row['box1'] === "01" || $row['box1'] === "04" || $row['box1'] === "07" || $row['box1'] === "10" ) {
-		$kvartal_startmd[$x] = $row['box1']*1;
-		$kvartal_kvartal[$x] = (2+$row['box1']*1)/3;
-		$kvartal_fuld[$x] = "ja";
-	} elseif ( $row['box1'] === "02" ||  $row['box1'] === "03" ) {
-		$kvartal_startmd[$x] = 1;
-		$kvartal_kvartal[$x] = 1;
-	} elseif ( $row['box1'] === "05" ||  $row['box1'] === "06" ) {
-		$kvartal_startmd[$x] = 4;
-		$kvartal_kvartal[$x] = 2;
-	} elseif ( $row['box1'] === "08" ||  $row['box1'] === "09" ) {
-		$kvartal_startmd[$x] = 7;
-		$kvartal_kvartal[$x] = 3;
-	} elseif ( $row['box1'] === "11" ||  $row['box1'] === "12" ) {
-		$kvartal_startmd[$x] = 10;
-		$kvartal_kvartal[$x] = 4;
-	}
-	
-	$kvartal_rapportart[$x] = "Listeangivelse ".$kvartal_kvartal[$x].". kvartal ".$kvartal_aar[$x];
+	$liste_aar[$x]=($row['box2']*1);
+	$liste_md[$x]=($row['box1']*1);
+#cho "\n<!-- Box1: ".$row['box1'].". Box2: ".$row['box2'].". Box3: ".$row['box3'].". Box4: ".$row['box4'].". -->\n";
+#cho "\n<!-- liste_aar: ".$liste_aar[$x].". liste_md: ".$liste_md[$x].". -->\n";
+	$liste_rapportart[$x] = "Listeangivelse ".$liste_md[$x].". måned ".$liste_aar[$x];
+	if ( $liste_md[$x] < 10 ) $liste_md[$x] = "0".$liste_md[$x];
+	$liste_aarmd[$x] = $liste_aar[$x].$liste_md[$x];
 	$kvartal_aarmd[$x] = ($kvartal_aar[$x].$row['box1'])*1+2;
-	$slut_regnaar = ($row['box4'].$row['box3'])*1;
-
-#	print "<option>while ( ".$kvartal_aarmd[$x]." <= ".$slut_regnaar.") {</option>\n";
-#	print "<option>Listeangivelse ".$kvartal_kvartal[$x].". ".$kvartal_aar[$x]."</option>\n";
-	while ( $kvartal_aarmd[$x] <= $slut_regnaar ) {
-#	print "<option>while ( ".$kvartal_aarmd[$x]." <= ".$slut_regnaar.") {</option>\n";
+	$slut_aarmd = ($row['box4'].$row['box3'])*1;
+#cho "\n<!-- Slut_aarmd: ".$slut_aarmd.". liste_aarmd: ".$liste_aarmd[$x].". -->\n";
+	while ( $liste_aarmd[$x] <= $slut_aarmd ) {
 		$w=$x;
 		$x++;
-		if ($kvartal_kvartal[$w] == 4) {
-			$kvartal_kvartal[$x] = 1;
-			$kvartal_startmd[$x] = 1;
-#			print "<option>V: ".$kvartal_aar[$x]." = ".$kvartal_aar[$w]."+1</option>\n";
-			$kvartal_aar[$x] = ($kvartal_aar[$w]*1)+1;
+		if ($liste_md[$x] == 13 ) {
+			$liste_md[$x] = 1;
+			$liste_aar[$x] = ($liste_aar[$w]*1)+1;
 		} else {
-			$kvartal_kvartal[$x] = ($kvartal_kvartal[$w]*1)+1;
-			$kvartal_startmd[$x] = ($kvartal_startmd[$w]*1)+3;
-#			print "<option>W: ".$kvartal_aar[$x]." (".$x.") = ".$kvartal_aar[$w]." (".$w.")</option>\n";
-			$kvartal_aar[$x] = $kvartal_aar[$w];
+			$liste_md[$x] = ($liste_md[$w]*1)+1;
+			$liste_aar[$x] = $liste_aar[$w];
 		}
 
-		$kvartal_rapportart[$x] = "Listeangivelse ".$kvartal_kvartal[$x].". kvartal ".$kvartal_aar[$x];
-#		print "<option>L: ".$kvartal_rapportart[$x]."</option>\n";
+		$liste_rapportart[$x] = "Listeangivelse ".$liste_md[$x].". måned ".$liste_aar[$x];
 
-		$kvartal_slutmd[$x] = ($kvartal_startmd[$x]*1);
-		if ( $kvartal_slutmd[$x] < 10 ) $kvartal_slutmd[$x] = "0".$kvartal_slutmd[$x];
+#		$kvartal_slutmd[$x] = ($kvartal_startmd[$x]*1);
+		if ( $liste_md[$x] < 10 ) $liste_md[$x] = "0".$liste_md[$x];
 
-		$kvartal_aarmd[$x] = $kvartal_aar[$x].$kvartal_slutmd[$x];
-#	print "<option>while ( ".$kvartal_aarmd[$x]." <= ".$slut_regnaar.") {</option>\n";
+		$liste_aarmd[$x] = $liste_aar[$x].$liste_md[$x];
 	}
 
 	$retur = "";
@@ -2018,25 +2483,53 @@ function listeangivelser ($regnaar, $rapportart, $option_type) {
 	$x--;
 	
 	#if ( $kvartal_slutmd[$x] > $regnaar_slutmd ) $kvartal_fuld
+#cho "\n<!-- x: ".$x.". option_type: ".$option_type.". -->\n";
 	for ($i=1; $i <= $x; $i++) {
-#		print "<option>LL: ".$kvartal_rapportart[$i]."</option>\n";
-		if ( $rapportart && $option_type == "matcher" && $rapportart == $kvartal_rapportart[$i] ) {
-		#	$retur.= "<option value=\"".$kvartal_rapportart[$i]."\">".$kvartal_rapportart[$i]."</option>\n";
-			print "<option value=\"".$kvartal_rapportart[$i]."\" title=\"Listeangivelser er pr. kvartal og uafh&aelig;ngig af regnskabs&aring;ret.\">".$kvartal_rapportart[$i]."</option>\n";
+		if ( $rapportart && $option_type == "matcher" && $rapportart == $liste_rapportart[$i] ) {
+			print "<option title=\"Listeangivelser pr. måned.\">".$liste_rapportart[$i]."</option>\n";
 		}
 	}
 
 	for ($i=1; $i <= $x; $i++) {
-		if ( $option_type == "alle andre" && ( !$rapportart || !($rapportart == $kvartal_rapportart[$i]) ) ) {
-		#	$retur.= "<option value=\"".$kvartal_rapportart[$i]."\">".$kvartal_rapportart[$i]."</option>\n";
-			print "<option value=\"".$kvartal_rapportart[$i]."\" title=\"Listeangivelser er pr. kvartal og uafh&aelig;ngig af regnskabs&aring;ret.\">".$kvartal_rapportart[$i]."</option>\n";
+		if ( $option_type == "alle andre" && ( !$rapportart || !($rapportart == $liste_rapportart[$i]) ) ) {
+#			print "<option value=\"".$liste_mdaar[$i]."\" title=\"Listeangivelser pr. måned.\">".$liste_rapportart[$i]."</option>\n";
+			print "<option title=\"Listeangivelser pr. måned.\">".$liste_rapportart[$i]."</option>\n";
 		}
 	}
 
 	return $retur;
+} # slut function listeangivelser - 20140729 slut afsnit 2
+
+/*
+function lagerprimo($kontonr,$varekob,$regnstart,$regnslut) {
+	
+	global $regnaar;
+	
+	$x=0;
+	$primo=0;
+	$lager=array();
+	$gruppe=array();
+	$q=db_select("select kodenr,box1 from grupper where art = 'VG' and box8 = 'on' and box3 = '$kontonr'",__FILE__ . " linje " . __LINE__);
+	while ($r=db_fetch_array($q)) {
+		if ($r['box1']) {
+			if (!in_array($lager)) {
+				$lager[$x]=$r['box1'];
+				$x++;
+			}
+		}
+	}
+	$y=0;
+	for ($x=0;$x<count($lager[$x]);$x++) {
+		$r=db_fetch_array(db_select("select primo from kontoplan where kontonr = '$lager[$x]' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__));
+		$primo+=$r['primo'];
+#		$r=db_fetch_array(db_select("select sum(debet) as debet from transaktioner where transdate >= '$regnstart' and transdate <= '$regnslut'",__FILE__ . " linje " . __LINE__));
+#		$primo+=$r['debet'];
+#		$r=db_fetch_array(db_select("select sum(kredit) as kredit from transaktioner where transdate >= '$regnstart' and transdate <= '$regnslut'",__FILE__ . " linje " . __LINE__));
+#		$primo-=$r['kredit'];
+	}
+	return($primo);
 }
-
-
+*/
 ?>
 </html>
 

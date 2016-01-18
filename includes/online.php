@@ -1,5 +1,5 @@
 <?php
-// ---------------------includes/online.php----lap 3.4.1---2014-05-02---
+// ---------------------includes/online.php----lap 3.4.9---2015-01-04---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,13 +18,15 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 2012.09.05 $ansat_navn bliver nu sat her. Søg 20120905
 // 2013.01.20 $sag_rettigheder bliver nu sat her. Søg 20130120
 // 2014.01.12 ændres headertekst til så google ikke tror at siderne er på norsk 
 // 2014.01.17 Remmet 2 linjer og fjernet id  + $g_id fre 3. linje (Gav efterfølgende duplicate key value violates unique constraint "grupper_pkey") . Søg 20140117
 // 2014.05.02	Indsat javascript i header til ordrelinje udfoldning - PHR Danosoft.Søg 20140502  
+// 2015.01.04 Indsat kontrol for om database er blevet opdateret. Søg 20150104
+// 2015.01.04 Ændret alert til tekstboks. Søg tekstboks
  
 ini_set("display_errors", "0");
 $db_skriv_id=NULL; #bruges til at forhindre at skrivninger til masterbasen logges i de enkelte regnskaber.
@@ -39,25 +41,23 @@ if ($title!="kreditorexport" && $ip!="128.30.52."){
 		$dbuser = trim($row['dbuser']);
 		$db	= trim($row['db']);
 		$regnaar = trim($row['regnskabsaar']);
-		$brugernavn = db_escape_string(trim($row['brugernavn']));
+		$brugernavn = db_escape_string($row['brugernavn']);
 		$unixtime=date("U");
 		$rettigheder=$row['rettigheder'];
 		$revisor=$row['revisor'];
 		if ($row['logtime']) db_modify("update online set logtime = '$unixtime' where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
-	} elseif ($title!='menu') {
+	} elseif ($title!='login' && $title!='opdat' && $title!='logud' && $title!='Aaben regnskab') {
 		if ($webservice) return ('Session expired');
 		else {
-			print "<BODY onLoad=\"JavaScript:alert('Din session er udl&oslash;bet - du skal logge ind igen');window.close();\">";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
-			exit;
+			if (!isset($nextver)) $nextver=NULL;
+			if (!$nextver) {# 20150125
+				include("../includes/std_func.php");
+				$txt='&nbsp;Din session er udl&oslash;bet - du skal logge ind igen';
+				print tekstboks($txt);
+				print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/logud.php\">";
+				exit;
+			}
 		}
-	} else {
-		if ($webservice) return ('Session expired');
-		else {
-			print "<BODY onLoad=\"JavaScript:alert('Din session er udl&oslash;bet - du skal logge ind igen');\">";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
-			exit;
-		}		
 	}
 }
 
@@ -67,24 +67,49 @@ elseif($sqdb=='severinus') $labelprint=1;
 elseif($db=='bizsys_22') $labelprint=1;
 elseif($db=='bizsys_25') $labelprint=1;
 
-# echo "$modulnr && $modulnr<100 && $db==$sqdb<br>";
+if($db=='severinus_22') $kundedisplay=1;
+
 if ($modulnr && $modulnr<100 && $db==$sqdb) { #Lukker vinduet hvis revisorbruger er logget af
-	print "<BODY onLoad=\"JavaScript:alert('Du har logget ud - vinduet lukkes');\">";
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
+	include("../includes/std_func.php");
+	$txt='Du har logget ud - vinduet lukkes';
+	print tekstboks($txt);
+	print "<meta http-equiv=\"refresh\" content=\"4;URL=../includes/luk.php\">";
 	exit;
 }
-$query = db_select("select * from regnskab where db = '$db'",__FILE__ . " linje " . __LINE__);
-if ($row = db_fetch_array($query)) {
+#echo "select * from regnskab where db = '$db'<br>";
+if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'",__FILE__ . " linje " . __LINE__))){
 	$db_id = $row['id'];
 	$db_skriv_id = $db_id;
+	$db_ver = $row['version'];  # 20150104
 	$regnskab = $row['regnskab'];
 	$max_posteringer = $row['posteringer'];
 }
-if ($db!=$sqdb) {
+if ($db && $sqdb && $db!=$sqdb) {
+	if (!isset($nextver)) { # 20150104
+			if ($version>$db_ver) { 
+			if ($db_type=='mysql') {
+				if (!mysql_select_db("$db")) die( "Unable to connect to MySQL");
+			} else {
+				$connection = db_connect ("$sqhost", "$squser", "$sqpass", "$db", __FILE__ . " linje " . __LINE__);
+				if (!$connection) die( "Unable to connect to PostgreSQL");
+			}
+			$r = db_fetch_array(db_select("select box1 from grupper where art='VE'",__FILE__ . " linje " . __LINE__));
+			include("../includes/connect.php");
+			if ($r['box1']>$db_ver) {
+				$db_ver=$r['box1'];
+				db_modify("update regnskab set version = '$db_ver' where id = '$db_id'", __FILE__ . " linje " . __LINE__);
+			}
+			if ($version>$db_ver && $title!='Aaben regnskab') {
+				include("../includes/std_func.php");
+				$txt="Saldi er blevet opdateret, log af og p&aring; igen";
+				print tekstboks($txt);
+			}
+		}
+	}
 	if ($db_type=='mysql') {
 		if (!mysql_select_db("$db")) die( "Unable to connect to MySQL");
 	} else {
-		$connection = db_connect ("$sqhost", "$squser", "$sqpass", "$db", __FILE__ . " linje " . __LINE__);
+	$connection = db_connect ("$sqhost", "$squser", "$sqpass", "$db", __FILE__ . " linje " . __LINE__);
 		if (!$connection) die( "Unable to connect to PostgreSQL");
 	}	
 	if (!$revisor) {
@@ -124,14 +149,34 @@ if ($db!=$sqdb) {
 			db_modify("update grupper set box1='$jsvars' where  art = 'USET' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__);
 		}
 	}
+	$textcolor="#000077";
+	$textcolor2="#009900";
+	$textcolor3="#6666aa"; # Svagere tekst til det som er mindre vigtigt
+	if (!isset($bgcolor)) $bgcolor="#eeeef0"; #alm baggrund
+	if (!isset($bgcolor2)) $bgcolor2="#BEBCCE"; #top & bundlinjer
+	if (!isset($bgcolor3)) $bgcolor3="#cccccc";
+	if (!isset($bgcolor4)) $bgcolor4="#d0d0f0";
+	if (!isset($bgcolor5)) {
+		for ($x=1;$x<=5;$x=$x+2) {
+			$a=hexdec(substr($bgcolor,$x,2));
+			if ($a<="224")$a+=32;
+			else $a-=32;
+			$bgcolor5.=dechex($a);
+		}
+		# $bgcolor5="#e0e0f0";
+	}
+if (!isset($bgnuance1)) $bgnuance1="+01+01-55"; # Aendring af nuancen til gult ved skiftende linjer
+	
 	if ($menu=='T') {
 		$header='nix';
 		$bg='nix';
 		$css=NULL;
 	}
 #	echo "$rettigheder -> $modulnr -> ".substr($rettigheder,$modulnr,1)."<br>";
-	if (($rettigheder)&&($modulnr)&&(substr($rettigheder,$modulnr,1)!='1')) { 
-			print "<BODY onLoad=\"JavaScript:alert('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');window.close();\">";
+	if (($rettigheder)&&($modulnr)&&(substr($rettigheder,$modulnr,1)!='1')) {
+		include("../includes/std_func.php");
+		$txt="Du har ikke nogen rettigheder her - din aktivitet er blevet logget";
+		print tekstboks($txt);
 		exit;
 	}
 }

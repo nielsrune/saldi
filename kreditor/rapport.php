@@ -81,8 +81,14 @@ if (isset($_POST['konto'])) {
 
 #echo "R $rapportart<br>";
 
+$husk=if_isset($_POST['husk']);
+if (isset($_POST['salgsstat']) && $_POST['salgsstat']) {
+ 	if ($husk) db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'",__FILE__ . " linje " . __LINE__);
+	print "<meta http-equiv=\"refresh\" content=\"1;URL=../includes/salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&art=K\">"; 
+	exit;
+}
+
 if (isset($_POST['submit']) || $rapportart) {
-	$husk=$_POST['husk'];
 	if (!$rapportart) {
 		$submit=strtolower(trim($_POST['submit']));
 		$rapportart=strtolower(trim($_POST['rapportart']));

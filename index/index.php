@@ -1,5 +1,5 @@
 <?php
-// -----------index/index.php-----------lap 3.4.1------2014-04-28---
+// -----------index/index.php-----------lap 3.4.8------2015-01-02---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,7 +18,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20140106	Tilføjet link til glemt kode
 // 20140428 Flyttet timestamp 3 linjer op (før </form>) (Forumbruger nielsrune) Søg 20140428    
@@ -37,6 +37,7 @@ if (!file_exists("../includes/connect.php")) {
 include("../includes/connect.php");
 include("../includes/db_query.php");
 include("../includes/std_func.php");
+include("../includes/version.php");
 
 if (isset ($_GET['navn'])) $navn = html_entity_decode(stripslashes($_GET['navn']),ENT_COMPAT,$charset);
 if (isset ($_GET['regnskab'])) $regnskab = html_entity_decode(stripslashes($_GET['regnskab']),ENT_COMPAT,$charset);
@@ -121,7 +122,7 @@ print "<tr><td colspan=\"2\" align=\"center\">
 print	"</tbody></table></td></tr>\n"; # <- tabel 1.2
 print "<tr><td align=\"center\" valign=\"bottom\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.3 ->
-print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\">&nbsp;Copyright&nbsp;&copy;&nbsp;2003-2014&nbsp;DANOSOFT&nbsp;ApS</td>";
+print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\">&nbsp;Copyright&nbsp;&copy;$copyright&nbsp;DANOSOFT&nbsp;ApS</td>";
 print "<td width=\"60%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"center\">Et <a href=\"http://www.saldi.dk\" target=\"blank\">SALDI</a> regnskab</td>";
 print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\"><br></td>";
 print "</tr></tbody></table>"; # <- tabel 1.3

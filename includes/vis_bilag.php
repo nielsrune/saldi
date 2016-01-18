@@ -1,5 +1,5 @@
 <?php
-// ----------finans/importer.php------------patch 3.1.3-----2011.01.20-----------
+// ----------finans/importer.php------------patch 3.4.3-----2014.07.01-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,8 +14,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20140701 Mange ændring i forbindelse med indførelse af owncloud bilagsopbevaring
 
 @session_start();
 $s_id=session_id();

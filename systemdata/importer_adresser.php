@@ -1,5 +1,5 @@
 <?php
-// ------systemdata/importer_adresser.php---lap 3.2.9---2013-02-10--------
+// ------systemdata/importer_adresser.php---lap 3.4.3---2014-08-11--------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // -----------------------------------------------------------------------
 
 // 2013.02.10 Break ændret til break 1
+// 2014.07.04 Ansatte og primær kontakt opdateres nu også ved opdatering 
+// 2014.08.11 se $find_kontakt... 
 
 
 @session_start();
@@ -168,8 +170,8 @@ if ($art!='D') {
 		$felt_betegn[$x]=$felt_navn[$x];
 	}
 } else {
-	$felt_navn=array("kontonr","firmanavn","fornavn","efternavn","addr1","husnr","etage","addr2","postnr","bynavn","land","kontakt","tlf","fax","email","web","notes","kreditmax","betalingsbet","betalingsdage","cvrnr","ean","institution","pbs_nr","gruppe","kontoansvarlig","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","kategori","status","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_fax","kontakt_email","kontakt_notes");
-	$felt_tekst_id=array("357","360","358","359","361","412","413","362","144","146","364","370","377","378","402","367","391","381","368","57","376","379","380","414","374","386","65","255","256","257","258","259","388","494","403","404","405","406","407","408","409","410","411");
+	$felt_navn=array("kontonr","firmanavn","fornavn","efternavn","addr1","husnr","etage","addr2","postnr","bynavn","land","kontakt","tlf","fax","email","mailfakt","web","notes","kreditmax","betalingsbet","betalingsdage","cvrnr","ean","institution","pbs_nr","gruppe","kontoansvarlig","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","kategori","status","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_fax","kontakt_email","kontakt_notes");
+	$felt_tekst_id=array("357","360","358","359","361","412","413","362","144","146","364","370","377","378","402","677","367","391","381","368","57","376","379","380","414","374","386","65","255","256","257","258","259","388","494","403","404","405","406","407","408","409","410","411");
 	$felt_antal=count($felt_navn);
 	for ($x=0; $x<$felt_antal; $x++) {
 		$felt_betegn[$x]=findtekst($felt_tekst_id[$x],$sprog_id);
@@ -320,7 +322,7 @@ if ($r=db_fetch_array(db_select("select * from grupper where art='DebInfo'",__FI
 	db_fetch_array(db_select("select box3 from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
 	$status_id=array();
 	$status_beskrivelse=array();
-	$status_antal=0;
+		$status_antal=0;
 }
 $ryd_firmanavn=0;
 $fp=fopen("$filnavn","r");
@@ -404,6 +406,7 @@ if ($fp) {
 			$upd='';
 			$kontakt_a='';
 			$kontakt_b='';
+			$find_kontakt='';
 			for ($y=0; $y<=$feltantal; $y++) {
 				if ($felt[$y] && $feltnavn[$y]=='status'&& (!in_array($felt[$y],$status_beskrivelse))) {
 					$x=1;
@@ -428,6 +431,7 @@ if ($fp) {
 						}
 					}
 				}
+#cho "$feltnavn[$y]<br>";
 				if ($feltnavn[$y] && $feltnavn[$y]!='husnr'  && $feltnavn[$y]!='etage' ) {
 					$felt[$y]=trim(addslashes($felt[$y]));
 					if ($feltnavn[$y]=='betalingsdage') $felt[$y]*=1;
@@ -444,18 +448,20 @@ if ($fp) {
 						if ($kontakt_a) {
 							$kontakt_a=$kontakt_a.",";
 							$kontakt_b=$kontakt_b.",";
+							$find_kontakt.=" and ";
 						}
 						$tmp=substr($feltnavn[$y],8);
 						$kontakt_a=$kontakt_a.$tmp;
 						$kontakt_b=$kontakt_b."'".$felt[$y]."'";
+						($find_kontakt)?$find_kontakt.="$tmp='".$felt[$y]."'":$find_kontakt="$kontakt_a=$kontakt_b";
 					}
 				}
 			}
-			if (!strpos($addr_a,'lukket')) {
+			if (!strstr($addr_a,'lukket')) {
 				$addr_a=$addr_a.",lukket";
 				$addr_b=$addr_b.",''";
 			}
-			if (!strpos($addr_a,'gruppe')) {
+			if (!strstr($addr_a,'gruppe')) {
 				$addr_a=$addr_a.",gruppe";
 				$addr_b=$addr_b.",'1'";
 				$upd=$upd.",gruppe='1'";
@@ -474,9 +480,9 @@ if ($fp) {
 					$konto_id=$r['id'];
 					$imp_antal++;
 				 db_modify("update adresser set $upd where id='$konto_id'",__FILE__ . " linje " . __LINE__);
-#				echo "kontonr=$kontonr opdateret<br>";
+#cho "kontonr=$kontonr opdateret<br>";
 				} else {
-#					echo "kontonr=$kontonr ikke opdateret<br>";
+#cho "kontonr=$kontonr ikke opdateret<br>";
 					$konto_id=0;
 				}
 			} else {
@@ -485,8 +491,24 @@ if ($fp) {
 				$r=db_fetch_array(db_select("select id from adresser where kontonr='$kontonr' and art = '$art'",__FILE__ . " linje " . __LINE__));
 				$konto_id=$r['id'];
 			}
-			if ($kontakt_a && !$r=db_fetch_array(db_select("select id from ansatte where konto_id='$konto_id'",__FILE__ . " linje " . __LINE__))){
-				db_modify("insert into ansatte($kontakt_a,konto_id) values ($kontakt_b,'$konto_id')",__FILE__ . " linje " . __LINE__);
+			if (in_array('kontakt',$feltnavn)) {
+				for ($y=0; $y<=$feltantal; $y++) {
+					if ($feltnavn[$y]=='kontakt') $kontakt=$felt[$y];
+				}
+			}
+			if ($kontakt && !$r=db_fetch_array(db_select("select id from ansatte where konto_id='$konto_id' and navn = '$kontakt'",__FILE__ . " linje " . __LINE__))){
+				db_modify("update ansatte set posnr=posnr+1 where konto_id= '$konto_id'",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into ansatte(navn,posnr,konto_id) values ('$kontakt',1,'$konto_id')",__FILE__ . " linje " . __LINE__);
+			}
+			if ($kontakt_a && $kontakt_b) {
+				if (!$r=db_fetch_array(db_select("select id from ansatte where konto_id='$konto_id' and $find_kontakt",__FILE__ . " linje " . __LINE__))){
+					db_modify("update ansatte set posnr=posnr+1 where konto_id= '$konto_id'",__FILE__ . " linje " . __LINE__);
+					db_modify("insert into ansatte($kontakt_a,posnr,konto_id) values ($kontakt_b,1,'$konto_id')",__FILE__ . " linje " . __LINE__);
+				}
+				if ($kontakt_b) {
+					list($tmp,$null)=explode(",",$kontakt_b,2);
+					db_modify("update adresser set kontakt=$tmp where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
+				}
 			}
 		}
 	}
@@ -498,7 +520,7 @@ print "</td></tr>";
 print "<BODY onLoad=\"javascript:alert('$imp_antal adresser importeret')\">";
 if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 else print "<meta http-equiv=\"refresh\" content=\"0;URL=../systemdata/diverse.php\">";
-#exit;
+exit;
 } # endfunc overfoer_data
 
 function nummertjek ($nummer){
@@ -541,16 +563,16 @@ function opdel ($splitter,$linje){
 	}
 	$var=explode(chr(9),$ny_linje);
 	for($i=0;$i<$feltantal;$i++) {
-#echo "$var[$i] - ";
+#cho "$var[$i] - ";
 		$var[$i]=trim($var[$i]);
 #cho substr($var[$i],0,1);
-#echo " - ";
-#echo substr($var[$i],-1);
+#cho " - ";
+#cho substr($var[$i],-1);
 
 		if (substr($var[$i],0,1)==chr(34) && substr($var[$i],-1)==chr(34)) {
 			$var[$i]=substr($var[$i],1,strlen($var[$i])-2);
 		}
-#echo " - $var[$i]<br>";
+#cho " - $var[$i]<br>";
 	}
 	return $var;
 }

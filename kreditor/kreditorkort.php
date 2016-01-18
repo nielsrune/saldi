@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php---(modul nr. 8)----------------lap 3.4.1---2014.05.27---
+// ----------kreditor/kreditorkort.php---(modul nr. 8)----------------lap 3.5.0---2015.01.22---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,12 +18,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2015 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 2013.02.24 Tilføjet kontofusion
 // 2014.03.19 addslashes erstattet med db_escape_string
 // 2014.05.27 Tilføjet bet.type SDC 3 - overførsel med kort advisering (ca)
 // 2014.05.27 Tilføjet bet.type SDCK020 - FI-kort 71 (SDC) (ca)
+// 2015.01.23 Indhente virksomhedsdata fra CVR via CVRapi - tak Niels Rune https://github.com/nielsrune
 
 
 @session_start();
@@ -149,7 +150,7 @@ if ($_POST) {
 				$query = db_select("select kontonr from adresser where art = 'K' order by kontonr",__FILE__ . " linje " . __LINE__);
 				while ($row = db_fetch_array($query)) {
 					$x++;
-					$ktoliste[$x]=$row[kontonr];
+					$ktoliste[$x]=$row['kontonr'];
 				}
 				if (in_array($ny_kontonr, $ktoliste)) {
 					 print "<BODY onLoad=\"javascript:alert('Kontonummer findes allerede, ikke &aelig;ndret')\">\n";
@@ -163,10 +164,13 @@ if ($_POST) {
 			 	else print "<BODY onLoad=\"javascript:alert('Hint!	Du skal s&aelig;tte et - (minus) som pos nr for at slette en kontaktperson')\">\n";
 			}
 		}
-	}
-	else {
-		db_modify("delete from adresser where id = $id",__FILE__ . " linje " . __LINE__);
-		$id=0;
+	}	else {
+		if(db_fetch_array(db_select("select vare_id from vare_lev where lev_id = '$id'",__FILE__ . " linje " . __LINE__))) {
+			print "<BODY onLoad=\"javascript:alert('Det er tilknyttet varer til denne kreditor')\">\n";
+		} else {
+			db_modify("delete from adresser where id = $id",__FILE__ . " linje " . __LINE__);
+			$id=0;
+		}
 	}
 }
 $tekst=findtekst(154,$sprog_id);
@@ -232,7 +236,7 @@ print "<input type=hidden name=returside value='$returside'>\n";
 print "<input type=hidden name=fokus value='$fokus'>\n";
 print "<tr bgcolor=$bg><td valign=\"top\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n"; # tabel 1.2.1 ->
 $bg=$bgcolor5;
-print "<tr bgcolor=$bg><td>Leverand&oslash;rnr</td><td><input class=\"inputbox\" type=text size=25 name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>Leverand&oslash;rnr</td><td><input class=\"inputbox\" type=text size=25 name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td>Navn</td><td><input class=\"inputbox\" type=text size=25 name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
@@ -279,9 +283,9 @@ print "</SELECT></td></tr>\n";
 print "</tbody></table></td>";#  <- tabel 1.2.1 
 print "<td  valign=\"top\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n"; # tabel 1.2.2 ->
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td width=\"25%\"> CVR-nr.</td><td width=\"75%\"><input class=\"inputbox\" type=text size=\"10\" name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td width=\"25%\"> CVR-nr.</td><td width=\"75%\"><input class=\"inputbox\" type=text size=\"10\" name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td> Telefon</td><td><input class=\"inputbox\" type=text size=\"10\" name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td> Telefon</td><td><input class=\"inputbox\" type=text size=\"10\" name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td> Telefax</td><td><input class=\"inputbox\" type=text size=\"10\" name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
@@ -391,6 +395,7 @@ print "<td width=\"40%\" $top_bund>&nbsp;</td>";
 #print	"<td style=\"border: 1px solid #b4b4ff; padding: 0pt 0pt 1px;\" align=\"left\" background=\"../img/grey1.gif\" width=\"100%\"><br></td>";
 print	"</tbody></table>";#tabel 1.3 slut
 print	"</td></tr>";
-print	"</tbody></table>";#tabel 1 slut
+print	"</tbody></table>\n";#tabel 1 slut
+print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
 print	"</body></html>";
 ?>

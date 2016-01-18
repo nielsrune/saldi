@@ -1,5 +1,5 @@
 <?php
-// -----------debitor/rykker.php---------lap 3.4.2-------2014-06-28--------
+// -----------debitor/rykker.php---------lap 3.4.3-------2014-07-07--------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,7 +21,8 @@
 // Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20140628 - Diverse rettelser da rykkergebyr altid vistes i DKK Søg 20140628
-
+// 20140707 - Opdatering virkede kun når der blev ændret valuta 20140707
+// 20140903 - Opdatering slettede beskrivelse ved bogført rykker 20140903  
 
 @session_start();
 $s_id=session_id();
@@ -35,10 +36,12 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 	
-if ($_GET['rykker_id'])	$rykker_id=$_GET['rykker_id'];
-else if ($_POST) {
+$rykker_id=if_isset($_GET['rykker_id']);
+if ($_POST['submit']) {
 	$linjeantal=if_isset($_POST['linjeantal']);
-	$rykker_id=if_isset($_POST['rykker_id']);
+	if (!$rykker_id) $rykker_id=if_isset($_POST['rykker_id']);
+	$r=db_fetch_array(db_select("select status from ordrer where id = '$rykker_id'",__FILE__ . " linje " . __LINE__)); #20140903
+	$status=$r['status'];
 	$rykkernr=if_isset($_POST['rykkernr']);
 	$submit=trim(if_isset($_POST['submit']));
 	if (strstr($submit, "Opdat")) $submit="Opdater";
@@ -75,9 +78,10 @@ else if ($_POST) {
 			}
 		}
 		db_modify("update ordrelinjer set pris =pris*$valutakurs/$ny_valutakurs where varenr != '' and varenr is not NULL and ordre_id='$rykker_id'",__FILE__ . " linje " . __LINE__);
-		db_modify("update ordrer set valuta ='$ny_valuta',valutakurs ='$ny_valutakurs',email ='$email',mail_fakt='$mail_fakt',kontakt='$kontakt' where id='$rykker_id'",__FILE__ . " linje " . __LINE__);
+		db_modify("update ordrer set valuta ='$ny_valuta',valutakurs ='$ny_valutakurs' where id='$rykker_id'",__FILE__ . " linje " . __LINE__);
 	}
-
+	#20140707
+	db_modify("update ordrer set email ='$email',mail_fakt='$mail_fakt',kontakt='$kontakt' where id='$rykker_id'",__FILE__ . " linje " . __LINE__);
 	if ($submit=="Send" && $mail_fakt) {
 		#	print "<BODY onLoad=\"return confirm('Dokumentet sendes pr. mail til $email')\">";
 	}
@@ -96,7 +100,8 @@ else if ($_POST) {
 			db_modify("delete from ordrer where id=$rykker_id",__FILE__ . " linje " . __LINE__);
 			$rykker_id=0;
 		} 
-	} elseif ($submit=="Opdater") {
+	} elseif ($submit=="Opdater" && $status < 3) { #20140903
+		
 		$beskrivelse=$_POST['beskrivelse'];
 		$dkpris=$_POST['dkpris'];
 		$ny_beskrivelse=db_escape_string(trim($_POST['ny_beskrivelse']));
@@ -105,7 +110,7 @@ else if ($_POST) {
 			for ($x=1; $x<=$linjeantal; $x++) {
 				$beskrivelse[$x]=db_escape_string($beskrivelse[$x]);
 #			$pris[$x]=usdecimal($dkpris[$x]); 2009.02.05 - Pris fjernet fra update da den elles bogfoerer hele beloebet.
-				db_modify("update ordrelinjer set beskrivelse = '$beskrivelse[$x]' where id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
+			db_modify("update ordrelinjer set beskrivelse = '$beskrivelse[$x]' where id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
 			}	
 		}
 	} elseif (strstr($submit,"Udskriv") || $submit=="Send") {

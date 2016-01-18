@@ -24,7 +24,6 @@ function autoudlign($udlign) {
 #	global $regnaar;
 	global $dato_til;
 
-
 #	if ($r = db_fetch_array(db_select("select box1, box2, box3, box4 from grupper where art='RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__))){
 #		if ($maaned_til <= $r['box3']) $slut="31-".trim($maaned_til)."-".$slutaar=trim($r['box4']);
 #		else $slut="31-".trim($maaned_til)."-".$slutaar=trim($r['box2']); 
@@ -32,43 +31,67 @@ function autoudlign($udlign) {
 	if (!$dato_til) $periodeslut='2999-12-31';
 	else $periodeslut=usdate($dato_til);
 		
+transaktion('begin');
 		$udlign=$udlign*1;
+#cho "udlign $udlign<br>";
 		if ($udlign>0) { #sker kun når kontoens saldo er 0
+			db_modify("update openpost set udlignet='0' where udlignet is NULL and konto_id='$udlign'",__FILE__ . " linje " . __LINE__);
+			db_modify("update openpost set udlign_id='0' where udlign_id is NULL and konto_id='$udlign'",__FILE__ . " linje " . __LINE__);
 			$q1=db_select("SELECT MAX(udlign_id) as udlign_id from openpost",__FILE__ . " linje " . __LINE__);
 			if ($r1=db_fetch_array($q1)) $y=$r1['udlign_id'];
 			$tilfoj="konto_id=$udlign and udlignet!='1' and";
 		}
 		else $tilfoj="udlignet='1' and";
 
+#cho "tilføj: $tilfoj<br>";
+		$sum=0;
 		for ($i=1;$i<=5;$i++) {
-
+			$udligndate="1970-01-01";
 			$kontrol=array();
 			$x=0;
-			if ($i<=2) $q1=db_select("SELECT id, faktnr, amount, konto_id from openpost where $tilfoj faktnr != '' and transdate <= '$periodeslut' and udlign_id = '0' order by transdate",__FILE__ . " linje " . __LINE__);
-			elseif ($i==3) $q1=db_select("SELECT id, amount, konto_id from openpost where $tilfoj faktnr != '' and transdate <= '$periodeslut' and udlign_id = '0' order by transdate",__FILE__ . " linje " . __LINE__);
-			elseif ($i==4) $q1=db_select("SELECT id, amount, konto_id from openpost where $tilfoj faktnr = '' and transdate <= '$periodeslut' and udlign_id = '0' order by transdate",__FILE__ . " linje " . __LINE__);
-			elseif ($i==5) $q1=db_select("SELECT id, amount, konto_id from openpost where $tilfoj udlign_id = '0' and transdate <= '$periodeslut' order by transdate",__FILE__ . " linje " . __LINE__);
-
+			$qtxt="SELECT id, faktnr,amount,konto_id,transdate,valutakurs from openpost where $tilfoj ";
+			if ($i<=2) $qtxt.="faktnr != '' and transdate <= '$periodeslut' and udlign_id = '0' order by transdate";
+			elseif ($i==3) $qtxt.="faktnr != '' and transdate <= '$periodeslut' and udlign_id = '0' order by transdate";
+			elseif ($i==4) $qtxt.="faktnr = '' and transdate <= '$periodeslut' and udlign_id = '0' order by transdate";
+			elseif ($i==5) $qtxt.="udlign_id = '0' and transdate <= '$periodeslut' order by transdate";
+#cho __line__." X $x $qtxt<br>";
+			$q1=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			while ($r1=db_fetch_array($q1)) {
-				if(!in_array($r1[id], $kontrol)) {
+#cho "R1 $r1[id]<br>";
+				if(!in_array($r1['id'], $kontrol)) {
 					$x++;
 					$id[$x]=$r1['id'];
+#cho "ID $id[$x]<br>";
 					$faktnr[$x]=$r1['faktnr'];
 					$amount[$x]=$r1['amount']*-1;
+					if ($r1['transdate']>$udligndate)$udligndate=$r1['transdate'];
+					$sum+=$r1['amount']*$r1['valutakurs']/100;
 					$konto_id[$x]=$r1['konto_id'];
 				}
+#cho __line__." $sum Amount $amount[$x]<br>";
 			}
 			$faktantal=$x;
-
-			for ($x=1; $x<=$faktantal; $x++) {
-				if ($i==1) $q1=db_select("SELECT id, transdate, faktnr from openpost where $tilfoj id != '$id[$x]' and amount='$amount[$x]' and konto_id='$konto_id[$x]' and udlignet='1' and transdate <= '$periodeslut' and udlign_id = '0' order by transdate",__FILE__ . " linje " . __LINE__);
-				elseif ($i==2) $q1=db_select("SELECT id, transdate from openpost where $tilfoj id != '$id[$x]' and amount='$amount[$x]' and konto_id='$konto_id[$x]' and  udlign_id = '0' and udlignet='1'  and transdate <= '$periodeslut' order by transdate",__FILE__ . " linje " . __LINE__);
-				elseif ($i<=4) $q1=db_select("SELECT id, transdate from openpost where $tilfoj id != '$id[$x]' and amount='$amount[$x]' and konto_id='$konto_id[$x]' and  udlign_id = '0' and udlignet='1'  and transdate <= '$periodeslut' order by transdate",__FILE__ . " linje " . __LINE__);
-				elseif ($i==5) $q1=db_select("SELECT id, transdate from openpost where $tilfoj id != '$id[$x]' and  udlign_id = '0' and transdate <= '$periodeslut'",__FILE__ . " linje " . __LINE__);
+			if ($sum==0) {
+				$y++;
+				for ($x=1; $x<=$faktantal; $x++) {
+#cho "update openpost set udlignet='1', udlign_id='$y', udlign_date='$udligndate' where id='$id[$x]'<br>";
+					db_modify("update openpost set udlignet='1', udlign_id='$y', udlign_date='$udligndate' where id='$id[$x]'",__FILE__ . " linje " . __LINE__);
+				}
+			} else {
+#cho "faktantal $faktantal<br>";
+		
+		for ($x=1; $x<=$faktantal; $x++) {
+				if ($i==1) $qtxt="SELECT id, transdate, faktnr from openpost where $tilfoj id != '$id[$x]' and amount='$amount[$x]' and konto_id='$konto_id[$x]' and udlignet='1' and transdate <= '$periodeslut' and udlign_id = '0' order by transdate";
+				elseif ($i==2) $qtxt="SELECT id, transdate from openpost where $tilfoj id != '$id[$x]' and amount='$amount[$x]' and konto_id='$konto_id[$x]' and  udlign_id = '0' and udlignet='1'  and transdate <= '$periodeslut' order by transdate";
+				elseif ($i<=4) $qtxt="SELECT id, transdate from openpost where $tilfoj id != '$id[$x]' and amount='$amount[$x]' and konto_id='$konto_id[$x]' and  udlign_id = '0' and udlignet='1'  and transdate <= '$periodeslut' order by transdate";
+				elseif ($i==5) $qtxt="SELECT id, transdate from openpost where $tilfoj id != '$id[$x]' and  udlign_id = '0' and transdate <= '$periodeslut'";
 				$z=0;
+#cho __line__." X $x $qtxt<br>";
+				$q1=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				if (($r1=db_fetch_array($q1))&&(!in_array($r1[id], $kontrol))) {
 					$z++;
 					$id2=$r1['id'];	
+#cho "ID2 $id2<br>	";
 					$transdate=$r1['transdate'];	
 				}
 				if (($z==1)&&(!in_array($id[$x], $kontrol))&&(!in_array($id2, $kontrol))){
@@ -77,18 +100,25 @@ function autoudlign($udlign) {
 					$kontrol[$v]=$id[$x];
 					$v++;
 					$kontrol[$v]=$id2;
+#cho __line__." update openpost set udlignet='1', udlign_id='$y', udlign_date='$transdate' where id='$id[$x]'<br>";
 					db_modify("update openpost set udlignet='1', udlign_id='$y', udlign_date='$transdate' where id='$id[$x]'",__FILE__ . " linje " . __LINE__);
+#cho __line__." update openpost set udlignet='1', udlign_id='$y', udlign_date='$transdate' where id='$id[$x]'<br>";
 					db_modify("update openpost set udlignet='1', udlign_id='$y', udlign_date='$transdate' where id='$id2'",__FILE__ . " linje " . __LINE__);
 				}
 			}	
 		}
 		$y++;
+#cho "$y<br>";
 		if ($udlign>0) { #Hvis der er nogen tilbage som ikke er blevet udlignet
 			$q1=db_select("SELECT id, transdate from openpost where konto_id='$udlign' and udlignet = '0' and transdate <= '$periodeslut'",__FILE__ . " linje " . __LINE__);
 			while ($r1=db_fetch_array($q1)) {
+#cho __line__." update openpost set udlignet='1', udlign_id='$y', udlign_date='$r1[transdate]' where id='$r1[id]'<br>";
 				db_modify("update openpost set udlignet='1', udlign_id='$y', udlign_date='$r1[transdate]' where id='$r1[id]'",__FILE__ . " linje " . __LINE__);
 			}
 		}
-#	}
+	}
+
+#exit;
+transaktion('commit');
 }
 ?>

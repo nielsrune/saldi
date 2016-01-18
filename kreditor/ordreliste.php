@@ -1,5 +1,5 @@
 <?php
-// --------------------------kreditor/ordreliste.php---lap 3.4.0------2014-03-19------
+// --------------------------kreditor/ordreliste.php---lap 3.4.3------2014-09-16------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,6 +21,7 @@
 // Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 2014.03.19 addslashes erstattet med db_escape_string
+// 2104.09.16	Tilføjet oioublimport i bunden
 
 ob_start();
 @session_start();
@@ -594,7 +595,10 @@ $cols++;
 if ($valg=='faktura') $cols++;
 $cols=$cols+4;
 print "<tr><td colspan=$cols><hr></td></tr>\n";
-
+$r=db_fetch_array(db_select("select * from grupper where art='bilag'",__FILE__ . " linje " . __LINE__));
+if($box6=$r['box6']) {
+	print "<tr><td colspan=\"4\" width=\"100%\" align=\"left\" valign=\"top\"><span title=\"Klik her for at importere en elektronisk faktura af typen oioubl\"><a href=ublimport.php?funktion=gennemse>Importer OIOUBL faktura</a></span></td></tr>";
+}
 
 ?>
 

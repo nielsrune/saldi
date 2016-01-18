@@ -22,6 +22,7 @@ $s_id=session_id();
 //
 // Copyright (c) 2004-2012 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20151116 - Funktion sat ud af drift.
 $modulnr=12;
 $kontonr=array();$post_id=array();
 $linjebg=NULL;
@@ -89,27 +90,43 @@ $dkkdiff=afrund($dkkdiff,2);
 $r=db_fetch_array(db_select("select sum(debet) as debet, sum(kredit) as kredit from transaktioner where kontonr='$samlekonto'",__FILE__ . " linje " . __LINE__));
 $tmp=$r['debet']-$r['kredit'];
 #cho "saldo $tmp<br>";
-transaktion('begin');
-if ($dkkdiff >= 0.01) {
+if ($godkend) {
+	transaktion('begin');
+		if ($dkkdiff >= 0.01) {
 #cho "insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values('$diffkto', '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$dkkdiff', '0', '0', '0', '0')<br>"; 
-	db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values('$diffkto', '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
+		db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values('$diffkto', '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
 #cho "insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$dkkdiff', '0', '0', '0', '0')<br>";
-	db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
-	$tmp=$dkkdiff*-1;
-} elseif ($dkkdiff <= -0.01) {
-	$tmp=$dkkdiff*-1;
+		db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
+		$tmp=$dkkdiff*-1;
+	} elseif ($dkkdiff <= -0.01) {
+		$tmp=$dkkdiff*-1;
 #cho "insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values($diffkto, '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$tmp', '0', '0', '0', '0')<br>";
-	db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values($diffkto, '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$tmp', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
+		db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values($diffkto, '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$tmp', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
 #cho "insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$tmp', '0', '0', '0', '0')<br>";
-	db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$tmp', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
-}
-$r=db_fetch_array(db_select("select sum(debet) as debet, sum(kredit) as kredit from transaktioner where kontonr='$samlekonto'",__FILE__ . " linje " . __LINE__));
-$tmp=$r['debet']-$r['kredit'];
+		db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$transdate', '$logdate', '$logtime', '$beskrivelse', '$tmp', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
+	}
+	$r=db_fetch_array(db_select("select sum(debet) as debet, sum(kredit) as kredit from transaktioner where kontonr='$samlekonto'",__FILE__ . " linje " . __LINE__));
+	$tmp=$r['debet']-$r['kredit'];
 #cho "saldo $tmp<br>";
 #cho "insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values ('$konto_id', '$kontonr', '$dkkdiff', '$beskrivelse', '1', '$transdate', '0', '0','-','0','0','$transdate')<br>";
-	db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values ('$konto_id', '$kontonr', '$dkkdiff', '$beskrivelse', '1', '$transdate', '0', '0','-','0','0','$transdate')",__FILE__ . " linje " . __LINE__);
+		db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values ('$konto_id', '$kontonr', '$dkkdiff', '$beskrivelse', '1', '$transdate', '0', '0','-','0','0','$transdate')",__FILE__ . " linje " . __LINE__);
 #exit;
-transaktion('commit');
-print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapportart=Kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok\">";
+	transaktion('commit');
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapportart=Kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok\">";
+} else {
+	print "<center>";
+	print "<table><tbody>";
+		print "<tr><td colspan=\"3\">Funktionen er midlertidigt slået fra<br>nedenståelde ville have været bogført</td></td></tr>";
+		print "<tr><td>Kontonr</td><td>kredit</td><td>debet</td></tr>"; 
+		if ($dkkdiff >= 0.01) {
+			print "<tr><td>$diffkto</td><td>".dkdecimal($dkkdiff)."</td><td></td></tr>"; 
+			print "<tr><td>$samlekto</td><td></td><td>".dkdecimal($dkkdiff)."</td></tr>"; 
+		} else {
+			print "<tr><td>$diffkto</td><td></td><td>".dkdecimal($dkkdiff)."</td></tr>"; 
+			print "<tr><td>$samlekonto</td><td>".dkdecimal($dkkdiff)."</td><td></td></tr>"; 
+		}
+		print "<meta http-equiv=\"refresh\" content=\"5;URL=$retur?rapportart=Kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok\">";
+		print "</tbody></table>";
+}
 ?>
 

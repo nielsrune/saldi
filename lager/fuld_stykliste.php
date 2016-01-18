@@ -30,5 +30,5 @@ include("../includes/online.php");
 include("../includes/dkdecimal.php");
  include("../includes/fuld_stykliste.php");
 
-fuld_stykliste($_GET[id], 'udskriv', '')
+fuld_stykliste($_GET['id'], 'udskriv', '')
 ?>

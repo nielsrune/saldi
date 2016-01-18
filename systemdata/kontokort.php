@@ -67,11 +67,47 @@ if (isset($_POST['slet'])){
 	$moms=if_isset($_POST['moms']);
 	$fra_kto=$_POST['fra_kto']*1;	
 	$til_kto=if_isset($_POST['kontonr']);
+	$saldo=if_isset($_POST['saldo']);
+	$valuta=if_isset($_POST['valuta']);
+	$ny_valuta=if_isset($_POST['ny_valuta']);
+#cho $ny_valuta."<br>";
 	$genvej=if_isset($_POST['genvej']);
 	$lukket=if_isset($_POST['lukket']);
-if ($kontotype!='Sum' && $kontotype!='Resultat'){
+	if ($kontotype!='Sum' && $kontotype!='Resultat'){
 		$fra_kto=0;
 		$til_kto=0;
+	}
+	if (!$valuta) $valuta='DKK'; 
+	if (!$ny_valuta) $ny_valuta='DKK'; 
+
+	if ($ny_valuta != $valuta) {
+		$dd=date("Y-m-d");
+#cho $dd."<br>$saldo<br>$ny_valuta<br>";
+		if ($saldo) {
+			if ($valuta=='DKK') {
+				$valutakode=0;
+				$kurs=100;
+			} else {
+				$r=db_fetch_array(db_select("select kodenr from grupper where art='VK' and box1 = '$valuta'",__FILE__ . " linje " . __LINE__));
+				$valutakode=$r['kodenr'];
+				$r=db_fetch_array(db_select("select kurs from valuta where gruppe='$valutakode' and valdate <= '$dd' order by valuta.valdate desc limit 1",__FILE__ . " linje " . __LINE__));
+				if ($r['kurs']) {
+					$kurs=$r['kurs'];
+				}
+			}
+			if ($ny_valuta=='DKK') {
+				$ny_valutakode=0;
+				$ny_kurs=100;
+			} else {
+				$r=db_fetch_array(db_select("select kodenr from grupper where art='VK' and box1 = '$ny_valuta'",__FILE__ . " linje " . __LINE__));
+				$ny_valutakode=$r['kodenr']*1;
+				$r=db_fetch_array(db_select("select kurs from valuta where gruppe='$ny_valutakode' and valdate <= '$dd' order by valuta.valdate desc limit 1",__FILE__ . " linje " . __LINE__));
+				if ($r['kurs']) {
+					$ny_kurs=$r['kurs'];
+				}
+			}
+			db_modify("update kontoplan set valuta ='$ny_valutakode', valutakurs='$ny_kurs' where id = '$id'",__FILE__ . " linje " . __LINE__);
+		}
 	}
 	if ($kontotype=='Overskrift'){
 		$kontotype='H';
@@ -136,7 +172,13 @@ if ($id > 0){
 		$genvej=$row['genvej'];
 		$lukket=$row['lukket'];
 		$saldo=$row['saldo'];
-	
+		$valutakode=$row['valuta'];
+		$valutakurs=$row['valutakurs'];
+		if ($valutakode) {
+#cho "select box1 from grupper where art='VK' and kodenr = '$valutakode'<br>";
+			$r=db_fetch_array(db_select("select box1 from grupper where art='VK' and kodenr = '$valutakode'",__FILE__ . " linje " . __LINE__));
+			$valuta=$r['box1'];
+		} else $valuta='DKK';
 		$r=db_fetch_array(db_select("select id from kontoplan where kontonr < '$kontonr' order by kontonr desc",__FILE__ . " linje " . __LINE__));
 		$forrige=$r['id']*1;	
 		$r=db_fetch_array(db_select("select id from kontoplan where kontonr > '$kontonr' order by kontonr",__FILE__ . " linje " . __LINE__));
@@ -196,7 +238,8 @@ print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 
 print "<form name=kontokort action=kontokort.php method=post>";
 print "<input type=hidden name=id value='$id'>";
-
+print "<input type=hidden name=valuta value='$valuta'>";
+print "<input type=hidden name=saldo value='$saldo'>";
 if ($id && $saldo) {
 	print "<tr><td><font face=\"Helvetica, Arial, sans-serif\">Kontonr.</td><td><br></td><td colspan=2> $kontonr</td></tr>\n";
 	print "<input type=hidden name=kontonr value=\"$kontonr\">";
@@ -258,11 +301,31 @@ if (($kontotype=='Drift')||($kontotype=='Status')) {
 		if (!in_array($alfabet[$x], $tmp)) print "<option>$alfabet[$x]</option>\n";
 	}
 	print "</SELECT></td>";
+	if ($kontotype=='Status') {
+		$x=1;
+		$valuta_kode[0]='DKK';
+		$valuta_navn[0]='Danske kroner';
+		$q=db_select("select beskrivelse,box1 from grupper where art='VK' order by box1",__FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$valuta_kode[$x]=$r['box1'];
+			$valuta_navn[$x]=$r['beskrivelse'];
+			$x++;
+		}
+		print "</tr><tr><td>Valuta</td><td></td>";
+		print "<td><SELECT NAME=\"ny_valuta\">";
+		for ($x=0;$x<count($valuta_kode);$x++){
+			if ($valuta==$valuta_kode[$x])print "<option value='$valuta_kode[$x]'>$valuta_kode[$x] : $valuta_navn[$x]</option>"; 
+		}
+		for ($x=0;$x<count($valuta_kode);$x++){
+			if ($valuta!=$valuta_kode[$x])print "<option value='$valuta_kode[$x]'>$valuta_kode[$x] : $valuta_navn[$x]</option>"; 
+		}
+		print "</select></td></tr>";
+	} else print "<input type=\"hidden\" name=\"$valuta_kode[$x]\" value='DKK'>"; 
 }
-if ($lukket=='on')  $lukket="checked";
-if (($kontotype=='Overskrift')||($kontotype=='Sum')) print "<tr><td colspan= 2>  Lukket</td><td>";
-else print "<td align=right> Lukket &nbsp;";
-print "<input type=checkbox name=lukket $lukket></td></tr>\n";
+if ($kontotype=='Drift'||$kontotype=='Status') print "<tr><td colspan=\"2\">Saldo</td><td>$valuta: ".dkdecimal($saldo*100/$valutakurs)."</td><tr>";
+if ($lukket=='on') $lukket="checked";
+print "<tr><td colspan=\"2\">Lukket</td>";
+print "<td><input type=checkbox name=lukket $lukket></td></tr>\n";
 print "<tr><td><br></td></tr>\n";
 print "<tr><td><br></td></tr>\n";
 print "<tr><td colspan=4 align=center>";

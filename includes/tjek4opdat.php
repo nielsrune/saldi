@@ -1,6 +1,6 @@
 <?php
 
-// --------------index/login.php----------lap 3.4.1----- 2014-05-02------
+// --------------includes/tjek4opdat.php----------lap 3.6.2----- 2016-01-16------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -17,12 +17,14 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 2013.09.06 Indsat $b=3;$c=0;  Søg 20130906  
 // 2014.05.02 Indsat $b==4{ osv. PHR Danosoft Søg 20140502
+// 2015.02.09 Indsat $b==5{ osv. PHR Danosoft Søg 20150209
+// 2016.01.16 Indsat $b==6{ osv. PHR Danosoft Søg 20160116
 
 if (!function_exists('tjek4opdat')) {
 	function tjek4opdat($dbver,$version) {
@@ -66,7 +68,7 @@ if (!function_exists('tjek4opdat')) {
 			if ($a==3) {
 				if ($b==0) {	
 					include("../includes/opdat_3.0.php");
-					opdat_3_0($b, $c);
+					opdat_3_0($b,$c);
 					$b=1;$c=0;
 				}
 				if ($b==1) {
@@ -88,6 +90,16 @@ if (!function_exists('tjek4opdat')) {
 					include("../includes/opdat_3.4.php");
 					opdat_3_4($b,$c);
 					$b=5;$c=0;
+				}
+				if ($b==5) { #20150209
+					include("../includes/opdat_3.5.php");
+					opdat_3_5($b,$c);
+					$b=6;$c=0;
+				}
+				if ($b==6) { #20161016
+					include("../includes/opdat_3.6.php");
+					opdat_3_6($b,$c);
+					$b=7;$c=0;
 				}
 			}
 		}

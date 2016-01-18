@@ -43,24 +43,24 @@ transaktion("begin");
   for ($x=1; $x<=$batch_kob_antal; $x++) {  
     list($nyt_lager[$x], $dummy)=explode(":",$nyt_lager[$x]);
     if (($antal[$x]<=$max_antal[$x])&&($antal[$x]>0)&&($submit=='Gem')){
-      if ($row = db_fetch_array(db_select("select * from batch_kob where id = $batch_kob_id[$x]"))) {
-        db_modify("update batch_kob set antal = $row[antal]-$antal[$x], rest = $row[rest]-$antal[$x] where id=$batch_kob_id[$x]");
-        if ($r2 = db_fetch_array(db_select("select * from batch_kob where linje_id = $row[linje_id] and lager=$nyt_lager[$x]"))) { 
-          db_modify("update batch_kob set antal = $r2[antal]+$antal[$x], rest = $r2[rest]+$antal[$x] where id=$r2[id]");
+      if ($row = db_fetch_array(db_select("select * from batch_kob where id = $batch_kob_id[$x]",__FILE__ . " linje " . __LINE__))) {
+        db_modify("update batch_kob set antal = $row[antal]-$antal[$x], rest = $row[rest]-$antal[$x] where id=$batch_kob_id[$x]",__FILE__ . " linje " . __LINE__);
+        if ($r2 = db_fetch_array(db_select("select * from batch_kob where linje_id = $row[linje_id] and lager=$nyt_lager[$x]",__FILE__ . " linje " . __LINE__))) { 
+          db_modify("update batch_kob set antal = $r2[antal]+$antal[$x], rest = $r2[rest]+$antal[$x] where id=$r2[id]",__FILE__ . " linje " . __LINE__);
         } 
         else {
-          db_modify("insert into batch_kob (kobsdate, fakturadate, vare_id, linje_id, ordre_id, pris, antal, rest, lager) values ('$row[kobsdate]', '$row[fakturadate]', '$row[vare_id]', '$row[linje_id]', '$row[ordre_id]', '$row[pris]', $antal[$x], $antal[$x], $nyt_lager[$x])");
+          db_modify("insert into batch_kob (kobsdate, fakturadate, vare_id, linje_id, ordre_id, pris, antal, rest, lager) values ('$row[kobsdate]', '$row[fakturadate]', '$row[vare_id]', '$row[linje_id]', '$row[ordre_id]', '$row[pris]', $antal[$x], $antal[$x], $nyt_lager[$x])",__FILE__ . " linje " . __LINE__);
         }
       }
-      $row = db_fetch_array(db_select("select beholdning from lagerstatus where vare_id=$vare_id and lager=$lager"));
-      db_modify("update lagerstatus set beholdning = $row[beholdning]-$antal[$x] where vare_id=$vare_id and lager=$lager");
-      $query = db_select("select beholdning from lagerstatus where vare_id=$vare_id and lager=$nyt_lager[$x]");
+      $row = db_fetch_array(db_select("select beholdning from lagerstatus where vare_id=$vare_id and lager=$lager",__FILE__ . " linje " . __LINE__));
+      db_modify("update lagerstatus set beholdning = $row[beholdning]-$antal[$x] where vare_id=$vare_id and lager=$lager",__FILE__ . " linje " . __LINE__);
+      $query = db_select("select beholdning from lagerstatus where vare_id=$vare_id and lager=$nyt_lager[$x]",__FILE__ . " linje " . __LINE__);
       if ($row = db_fetch_array($query))
       {
-         db_modify("update lagerstatus set beholdning = $row[beholdning]+$antal[$x] where vare_id=$vare_id and lager=$nyt_lager[$x]");
+         db_modify("update lagerstatus set beholdning = $row[beholdning]+$antal[$x] where vare_id=$vare_id and lager=$nyt_lager[$x]",__FILE__ . " linje " . __LINE__);
       }
       else {
-         db_modify("insert into lagerstatus (vare_id, beholdning, lager) values ($vare_id, $antal[$x], $nyt_lager[$x])");
+         db_modify("insert into lagerstatus (vare_id, beholdning, lager) values ($vare_id, $antal[$x], $nyt_lager[$x])",__FILE__ . " linje " . __LINE__);
       } 
     }
   }
@@ -72,10 +72,10 @@ $antal[$x]=0;
 $x=0;
 
 $tmp="'".$lager."'";
-if (!$lager) $tmp.= ' or lager is NULL';
-
-echo "select * from batch_kob where vare_id='$vare_id' and (lager=$tmp) and rest > '0'";
-$query = db_select("select * from batch_kob where vare_id='$vare_id' and (lager=$tmp) and rest > '0'");
+if ($lager <= 1) $qtxt="select * from batch_kob where vare_id='$vare_id' and (lager<='1' or lager is NULL) and rest > '0'";
+else $qtxt="select * from batch_kob where vare_id='$vare_id' and lager='$lager' and rest > '0'";
+echo "$qtxt";
+$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query))
 {
   $x++;
@@ -87,9 +87,9 @@ while ($row = db_fetch_array($query))
 $batch_kob_antal=$x;
 
 $x=0;
-$lagernavn[0]="Hovedlager";
-$lagernr[0]=0;
-$query = db_select("select beskrivelse, kodenr from grupper where art='LG' order by kodenr");
+#$lagernavn[0]="Hovedlager";
+#$lagernr[0]=0;
+$query = db_select("select beskrivelse, kodenr from grupper where art='LG' order by kodenr",__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)) {
   $x++;
   $lagernavn[$x]=$row['beskrivelse'];       
@@ -97,7 +97,7 @@ while ($row = db_fetch_array($query)) {
 }
 $lagerantal=$x;
 
-$row = db_fetch_array(db_select("select varenr from varer where id=$vare_id"));
+$row = db_fetch_array(db_select("select varenr from varer where id=$vare_id",__FILE__ . " linje " . __LINE__));
 $varenr=$row['varenr'];
 print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" valign = \"top\" align=\"center\"><tbody>";
 print "<tr><td align=center colspan=4><b>Flyt vare $varenr fra lager $lager</td></tr>";
@@ -107,11 +107,11 @@ print "<tr><td align=\"center\"><b>Beh.</td><td>&nbsp;</td><td align=\"center\">
 print "<tr><td colspan=4><hr></td></tr>";
 for ($y=1; $y<=$batch_kob_antal; $y++) {
   
-  $row=db_fetch_array( db_select("select ordrenr from ordrer where id=$kobs_ordre_id[$y]"));
+  $row=db_fetch_array( db_select("select ordrenr from ordrer where id=$kobs_ordre_id[$y]",__FILE__ . " linje " . __LINE__));
   $ordrenr[$y]=$row['ordrenr'];
-  if ($row=db_fetch_array(db_select("select linje_id from reservation where batch_kob_id=$batch_kob_id[$y]"))) {
-    if ($row=db_fetch_array(db_select("select ordre_id from ordrelinjer where id=$row[linje_id]"))) {
-      if ($row=db_fetch_array(db_select("select id, ordrenr from ordrer where id=$row[ordre_id]"))) {
+  if ($row=db_fetch_array(db_select("select linje_id from reservation where batch_kob_id=$batch_kob_id[$y]",__FILE__ . " linje " . __LINE__))) {
+    if ($row=db_fetch_array(db_select("select ordre_id from ordrelinjer where id=$row[linje_id]",__FILE__ . " linje " . __LINE__))) {
+      if ($row=db_fetch_array(db_select("select id, ordrenr from ordrer where id=$row[ordre_id]",__FILE__ . " linje " . __LINE__))) {
         $res_ordre_id[$y]=$row['id'];
         $res_ordrenr[$y]=$row['ordrenr'];
       }
@@ -121,7 +121,7 @@ for ($y=1; $y<=$batch_kob_antal; $y++) {
   if (($fakturadate[$y])&&(!$res_ordre_id[$y])) {
     print "<td align=\"center\"><input type=text size=\"2\" name=\"antal[$y]\" style=\"text-align:right\" value=\"0\"></td>";
     print "<td align=\"center\"><SELECT NAME=nyt_lager[$y]>";
-    for ($x=0; $x<=$lagerantal; $x++) {
+    for ($x=1; $x<=$lagerantal; $x++) {
       if ($lagernr[$x] != $lager) {print "<option>$lagernr[$x] : $lagernavn[$x]</option>";}
     }
     print "</td></tr>";

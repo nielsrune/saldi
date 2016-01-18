@@ -161,6 +161,9 @@ for($x=1; $x<=$vareantal; $x++) {
 		if ($tmp*$batch_t_antal[$x]!=0) $batch_pris[$x]=$batch_pris[$x]/$tmp*$batch_t_antal[$x];
 		else $batch_pris[$x]=0;
 	}
+	if (isset($_GET['ajour']) && $_GET['ajour']==1 && $batch_t_antal[$x] != $beholdning[$x]) {
+		db_modify("update varer set beholdning = '$batch_t_antal[$x]' where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
+	}
 	if ($batch_k_antal[$x]||$batch_s_antal[$x]||$beholdning[$x]||$handlet[$x]) {
 		if ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
 		else {$linjebg=$bgcolor; $color='#000000';}
