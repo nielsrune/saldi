@@ -207,6 +207,7 @@ if (isset($_POST['create_debtor'])) {
 
 	$konto_id = create_debtor($kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $email, $phone, $cvrnr, $grp, $ean, $betalingsbet, $betalingsdage, $kontakt);
 	if (!$konto_id) $konto_id = 0;
+	if (!$id && isset($_POST['id'])) $id = $_POST['id']; #20260410 - form posts the id
 	if (!$id && isset($_GET['id'])) $id = $_GET['id']; #20221019
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id&konto_id=$konto_id\">\n";
 	exit;
@@ -1964,6 +1965,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					if (!$leveres[$x]) $leveres[$x] = 0;
 					elseif ($antal[$x] > 0 && $leveres[$x] > $antal[$x]) {
 						$leveres[$x] = $antal[$x];
+					} elseif ($leveres[$x] < 0) {
+						if (abs($leveres[$x]) > abs($tidl_lev[$x]))
+							$leveres[$x] = $tidl_lev[$x] * -1;
 					}
 					if (!$rabat[$x]) $rabat[$x] = 0;
 					if (!$kostpris[$x]) $kostpris[$x] = 0;
@@ -4086,17 +4090,23 @@ function ordreside($id, $regnskab)
 				print "<td align=\"right\" title=\"Kostpris $dk_lineCost[$x] * db: $dk_db[$x] * dg: $dk_dg[$x]%\">" . $tmp . "</td>\n";
 			} else print "<td>&nbsp;</td>\n";
 			print "<input type=\"hidden\" name=\"projekt[$x]\" value=\"$projekt[$x]\">\n";
-			if ($vis_projekt && !$projekt[0] && $projekt[$x]) {
-				$qtxt = "select beskrivelse from grupper where art = 'PROJ' and kodenr='$projekt[$x]'";
-				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				print "<td align=\"right\" title=\"'$r[projekt]'\">$projekt[$x]</td>\n";
-			} // else print "<td></td>"; # udkommenteret 20140502
-			print $kdo[$x];
+			
+			if ($vis_projekt && !$projekt[0]) {
+				if ($projekt[$x]) {
+					$qtxt = "select beskrivelse from grupper where art = 'PROJ' and kodenr='$projekt[$x]'";
+					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					print "<td align=\"right\" title=\"$r[beskrivelse]\">$projekt[$x]</td>\n";
+				} else {
+					print "<td></td>\n";
+				}
+			}
+
 			if ($genfakt) {
 				print "<td align=\"center\">";
 				if ($kdo[$x]) print "<b>&radic;</b>";
 				print "</td>";
 			}
+
 			if ($omvbet[$x]) $omvbet[$x] = "&radic;";
 			if ($omkunde) print "<td align=\"center\">$omvbet[$x]</td>\n";
 			if ($kobs_ordre_id[0] && $art != 'DK' && $ko_ant[$x] >= 1) {
@@ -4398,30 +4408,64 @@ function ordreside($id, $regnskab)
 			$ret = 1;
 		};
 		print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_land\">" . findtekst('593|Lande', $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"land\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$land\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
-		if (!$sag_id) { #20140826
+		if (!$sag_id && count($a_kontakt) <= 1) { #20140826 #20260409 show dropdown when multiple contacts
 			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"kontakt\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$kontakt\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
-		} else {
-			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . "</td><td colspan=\"2\"><div class=\"ddbox\"><input class=\"inputbox ddtext\" type = 'text' name=\"kontakt\" id=\"Textbox\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$kontakt\" onchange=\"javascript:docChange = true;\" $disabled>\n"; // DropDownIndexClear('DropDownExTextbox');
-			print "<select name=\"DropDownExTextbox\" id=\"DropDownExTextbox\" tabindex=\"1000\" class=\"inputbox ddselect\" $disabled>\n"; // onchange=\"DropDownTextToBox(this,'Textbox');\"
-			for ($y = 0; $y <= count($a_kontakt); $y++) {
-				print "<option value=\"$a_kontakt[$y]\" data-kontakt_tlf=\"$a_mobil[$y]\">$a_kontakt[$y]</option>\n";
+		} else { #20260409 select dropdown with option to type custom name
+			if (empty($kontakt) && count($a_kontakt) > 0) $kontakt = $a_kontakt[0]; # default to first contact
+			$kontaktInList = in_array($kontakt, $a_kontakt);
+			print "<script language=\"javascript\" type=\"text/javascript\">\n";
+			print "var kontaktTlfMap = {};\n";
+			for ($y = 0; $y < count($a_kontakt); $y++) {
+				$jsName = addslashes($a_kontakt[$y]);
+				$jsTlf = addslashes($a_mobil[$y]);
+				print "kontaktTlfMap['$jsName'] = '$jsTlf';\n";
 			}
-			print "</select></div></td></tr>\n";
-			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . " " . strtolower(findtekst('49|Tlf', $sprog_id)) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"kontakt_tlf\" id=\"kontakt_tlf\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$kontakt_tlf\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n"; #20160129
-
+			print "</script>\n";
+			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . "</td><td colspan=\"2\">";
+			print "<input type='hidden' name='kontakt' id='kontakt_hidden' value=\"$kontakt\">\n";
+			# Select dropdown (visible by default if current value is in list or empty)
+			$selStyle = (!$kontaktInList && !empty($kontakt)) ? "display:none" : "";
+			$txtStyle = (!$kontaktInList && !empty($kontakt)) ? "" : "display:none";
+			print "<select class='inputbox' id='kontakt_select' style=\"width:200px;$selStyle\" onchange=\"javascript:docChange = true;\" $disabled>\n";
+			for ($y = 0; $y < count($a_kontakt); $y++) {
+				$sel = ($a_kontakt[$y] == $kontakt) ? " selected" : "";
+				print "<option value=\"$a_kontakt[$y]\"$sel>$a_kontakt[$y]</option>\n";
+			}
+			print "<option value='__custom__'>-- Skriv selv --</option>\n";
+			print "</select>\n";
+			# Text input (hidden by default, shown when "Skriv selv" is picked)
+			$customVal = (!$kontaktInList && !empty($kontakt)) ? $kontakt : "";
+			print "<input class='inputbox' type='text' id='kontakt_custom' style=\"width:170px;$txtStyle\" value=\"$customVal\" placeholder='Skriv navn...' $disabled>";
+			print "<a href='#' id='kontakt_back_link' style=\"margin-left:4px;font-size:11px;$txtStyle\">Liste</a>";
+			print "</td></tr>\n";
+			print "<tr><td>" . findtekst('2530|Att.', $sprog_id) . " " . strtolower(findtekst('49|Tlf', $sprog_id)) . "</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"kontakt_tlf\" id=\"kontakt_tlf\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$kontakt_tlf\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 			print "<script language=\"javascript\" type=\"text/javascript\">
-			
-							DropDownIndexClear(\"DropDownExTextbox\");
-							
-							$('#DropDownExTextbox').on('change', function () {
-									
-									var select = $(this).find('option:selected').val()
-									var selectTlf = $(this).find('option:selected').attr('data-kontakt_tlf')
-									$('#Textbox').val(select)
-									$('#kontakt_tlf').val(selectTlf)
-									DropDownIndexClear(\"DropDownExTextbox\");
+							$('#kontakt_select').on('change', function () {
+								var val = $(this).val();
+								if (val == '__custom__') {
+									$(this).hide();
+									$('#kontakt_custom').show().focus();
+									$('#kontakt_back_link').show();
+									$('#kontakt_hidden').val('');
+									$('#kontakt_tlf').val('');
+								} else {
+									$('#kontakt_hidden').val(val);
+									if (kontaktTlfMap.hasOwnProperty(val)) {
+										$('#kontakt_tlf').val(kontaktTlfMap[val]);
+									}
+								}
+								docChange = true;
 							});
-							
+							$('#kontakt_custom').on('input', function () {
+								$('#kontakt_hidden').val($(this).val());
+								docChange = true;
+							});
+							$('#kontakt_back_link').on('click', function (e) {
+								e.preventDefault();
+								$('#kontakt_custom').hide().val('');
+								$(this).hide();
+								$('#kontakt_select').show().val($('#kontakt_select option:first').val()).trigger('change');
+							});
 						</script>\n";
 		}
 		if (!$kundeordnr) $kundeordnr = '';
@@ -4611,7 +4655,7 @@ function ordreside($id, $regnskab)
 				print "<input type='hidden' name='betalingsdage' value='0'>";
 				print "$betalingsbet";
 				print "</td>";
-				if ($betalingsbet = 'Netto') print "<td></td>";
+				if ($betalingsbet == 'Netto') print "<td></td>";
 			} else {
 				if ($felt_1 == 'Konto') { # Rettet 20181218 
 					if (!in_array($betalingsbet, $kontobet)) {
