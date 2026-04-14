@@ -51,8 +51,8 @@ $s_id = session_id();
 $title = "Kassekladde"; 
 $modulnr = 2;
 $css = "../css/standard.css";
-$afd = $amount = $ansat = $ansat_id = $belob = $beskrivelse = $betal_id = $bilag = $dato = $d_type = $debet = array();
-$faktura = $forfaldsdate = $forfaldsdato = $id = $k_type = $kontonr = $kredit = $lobenr = $momsfri = $projekt = $valuta = array();
+$afd = $amount = $ansat = $ansat_id = $belob = $beskrivelse = $betal_id = $bilag = $dato = $d_type = $debet = $debetvat = array();
+$faktura = $forfaldsdate = $forfaldsdato = $id = $k_type = $kontonr = $kredit = $kreditvat = $lobenr = $momsfri = $projekt = $valuta = array();
 
 $antal_ex = NULL;
 $belob_ligslut = $belob_ligstart = $beskrivelse_ligslut = NULL;
@@ -2046,7 +2046,7 @@ SCRIPT;
 		// print "<tbody>"; # Tabel 1.3 -> kladdelinjer
 		// print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
 		print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
-		print "<tr class='table-krow'><td colspan='22' style='padding: 10px 0;'></td></tr>";
+		print "<tr class='table-krow'><td colspan='24' style='padding: 10px 0;'></td></tr>";
 		print "<tr>";
 		if ($vis_bilag && !$fejl && !$udskriv)
 			print "<td></td>";
@@ -2055,8 +2055,10 @@ SCRIPT;
 		print "<td align = center><b> " . findtekst('1068|Bilagstekst', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1000|Debet', $sprog_id)) . "</b></td>";
+		print "<td align = center><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1001|Debet', $sprog_id)) . "</b></td>";
+		print "<td align = center><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1566|Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning', $sprog_id) . ".'>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td>";
 		print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
 
@@ -2216,11 +2218,13 @@ if ($kladde_id) {
 		$d_type[$x] = trim($row['d_type']);
 		$debet[$x] = $row['debet'];
 		$debettext[$x] = NULL;
+		$debetvat[$x] = '';
 		$k_type[$x] = $row['k_type'];
 		if ($k_type[$x] == "K" || $d_type[$x] == "D")
 			$vis_forfald = 1;
 		$kredit[$x] = $row['kredit'];
 		$kredittext[$x] = NULL;
+		$kreditvat[$x] = '';
 		$faktura[$x] = htmlentities($row['faktura'], ENT_QUOTES, $charset);
 		$saldo[$x] = $row['saldo'];
 		if ($fejl) {
@@ -2251,10 +2255,11 @@ if ($kladde_id) {
 			list($dkkamount[$x], $diffkonto[$x], $valutakurs[$x]) = valutaopslag($amount[$x], $valutakode[$x], $transdate[$x]);
 		} else $dkkamount[$x] = (float) $amount[$x];
 		if (!$beskrivelse) $beskrivelse = '';
-		if (($d_type[$x] == 'F') && ($debet[$x]) && (!$fejl)) {
+		if (((!$d_type[$x]) || $d_type[$x] == 'F') && ($debet[$x]) && (!$fejl)) {
 			$query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$debet[$x]' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 			if ($row2 = db_fetch_array($query2)) {
 				$debettext[$x] = $row2['beskrivelse'];
+				$debetvat[$x] = trim(if_isset($row2['moms'], ''));
 				if (trim($row2['moms']))
 					$debettext[$x] = $debettext[$x] . "&nbsp;-&nbsp;" . trim($row2['moms']);
 			} else
@@ -2268,10 +2273,11 @@ if ($kladde_id) {
 			} else
 				$debettext[$x] = '';
 		}
-		if (($k_type[$x] == 'F') && ($kredit[$x]) && (!$fejl)) {
+		if (((!$k_type[$x]) || $k_type[$x] == 'F') && ($kredit[$x]) && (!$fejl)) {
 			$query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$kredit[$x]' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 			if ($row2 = db_fetch_array($query2)) {
 				$kredittext[$x] = trim($row2['beskrivelse']);
+				$kreditvat[$x] = trim(if_isset($row2['moms'], ''));
 				if (trim($row2['moms']))
 					$kredittext[$x] = $kredittext[$x] . "&nbsp;-&nbsp;" . trim($row2['moms']);
 			} else
@@ -2363,6 +2369,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$afd[$y] = '';
 			$projekt[$y] = '';
 			$valuta[$y] = '';
+			$debetvat[$y] = '';
+			$kreditvat[$y] = '';
 			$forfaldsdato[$y] = '';
 			$betal_id[$y] = '';
 		}
@@ -2466,6 +2474,7 @@ $dropAttr = "";
 			</span></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\" title='$debettext[$y]' onchange='javascript:docChange = true;'></td>\n";
+		print "<td><input class='inputbox' type='text' style='text-align:center;width:45px;background-color:#f5f5f5;' name='dvat$y' value=\"" . htmlspecialchars(if_isset($debetvat[$y], ''), ENT_QUOTES, $charset) . "\" readonly='readonly' tabindex='-1'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='k_ty$y' $de_fok value =\"$k_type[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (($d_type[$y] == 'D' || $d_type[$y] == 'K') && $debet[$y] && !$kredit[$y]) {
 			$libtxt = sidste_5($debet[$y], $d_type[$y], 'K');
@@ -2475,6 +2484,7 @@ $dropAttr = "";
 			</span></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\" title= '$kredittext[$y]' onchange='javascript:docChange = true;'></td>\n";
+		print "<td><input class='inputbox' type='text' style='text-align:center;width:45px;background-color:#f5f5f5;' name='kvat$y' value=\"" . htmlspecialchars(if_isset($kreditvat[$y], ''), ENT_QUOTES, $charset) . "\" readonly='readonly' tabindex='-1'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (!isset($valuta[$y])) $valuta[$y] = $baseCurrency;
 		if ($valuta[$y] == $baseCurrency) $title = "";
@@ -2722,10 +2732,14 @@ $dropAttr = "";
 		name='d_ty$x' $de_fok value =\"$d_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' 
 		name='debe$x' $de_fok value =\"$debet[$x]\" onchange='javascript:docChange = true;'></td>\n";
+		print "<td><input class='inputbox' type='text' style='text-align:center;width:45px;background-color:#f5f5f5;' 
+		name='dvat$x' value=\"" . htmlspecialchars(if_isset($debetvat[$x], ''), ENT_QUOTES, $charset) . "\" readonly='readonly' tabindex='-1'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' 
 		name='k_ty$x' $de_fok value =\"$k_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' 
 		name='kred$x' $de_fok value=\"$kredit[$x]\" onchange='javascript:docChange = true;'></td>\n";
+		print "<td><input class='inputbox' type='text' style='text-align:center;width:45px;background-color:#f5f5f5;' 
+		name='kvat$x' value=\"" . htmlspecialchars(if_isset($kreditvat[$x], ''), ENT_QUOTES, $charset) . "\" readonly='readonly' tabindex='-1'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' 
 		name='fakt$x' $de_fok value=\"$faktura[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;' 
@@ -4669,4 +4683,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <?php
 	?>
-
