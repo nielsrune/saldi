@@ -330,7 +330,7 @@
 
     function getVatField(rowNum, side) {
         const prefix = side === 'debet' ? 'dvat' : 'kvat';
-        return document.querySelector('input[name="' + prefix + rowNum + '"]');
+        return document.querySelector('select[name="' + prefix + rowNum + '"], input[name="' + prefix + rowNum + '"]');
     }
 
     function setVatFieldValue(rowNum, side, value) {

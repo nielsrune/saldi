@@ -93,6 +93,29 @@ include("../includes/row-hover-style.js.php");
 
 include("../includes/grid.php");
 
+// Build VAT codes list from grupper table (art 2nd char = 'M')
+$vat_codes = array();
+$vat_q = db_select("select kode, kodenr, beskrivelse, art from grupper where substring(art,2,1)='M' order by kode, kodenr", __FILE__ . " linje " . __LINE__);
+while ($vat_r = db_fetch_array($vat_q)) {
+    $vat_code = trim($vat_r['kode']) . trim($vat_r['kodenr']);
+    if ($vat_code) {
+        $vat_codes[$vat_code] = trim($vat_r['beskrivelse']);
+    }
+}
+
+// Helper function to render VAT select dropdown
+function render_vat_select($name, $selected_value, $vat_codes, $charset) {
+    $selected_value = trim($selected_value);
+    $html = "<select class='inputbox' name='$name' style='width:55px;font-size:11px;background-color:#f5f5f5;' tabindex='-1'>";
+    $html .= "<option value=''></option>";
+    foreach ($vat_codes as $code => $desc) {
+        $sel = ($selected_value === $code) ? " selected='selected'" : '';
+        $html .= "<option value='" . htmlspecialchars($code, ENT_QUOTES, $charset) . "' title='" . htmlspecialchars($desc, ENT_QUOTES, $charset) . "'$sel>" . htmlspecialchars($code, ENT_QUOTES, $charset) . "</option>";
+    }
+    $html .= "</select>";
+    return $html;
+}
+
 print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
 print '<link rel="stylesheet" type="text/css" href="../css/datepickerDa.css">';
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
@@ -143,7 +166,7 @@ print '<script src="../javascript/datepickerDa.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css">';
-print '<script src="../javascript/accountAutocomplete.js?v=4.1.2" defer></script>';
+print '<script src="../javascript/accountAutocomplete.js?v=4.1.3" defer></script>';
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
@@ -167,6 +190,27 @@ if (
     && $_POST['action'] === 'duplicate_line'
 ) {
    include("kassekladde_includes/duplicate_line.php");
+}
+
+// Handle AJAX VAT lookup request
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    && isset($_POST['action'])
+    && $_POST['action'] === 'lookup_vat'
+) {
+    $kontonr = db_escape_string(trim($_POST['kontonr']));
+    $regnaar_vat = db_escape_string(trim($_POST['regnaar']));
+    $vat = '';
+    if ($kontonr && $regnaar_vat) {
+        $qtxt = "select moms from kontoplan where kontonr='$kontonr' and regnskabsaar='$regnaar_vat'";
+        $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        if ($row = db_fetch_array($query)) {
+            $vat = trim(if_isset($row['moms'], ''));
+        }
+    }
+    header('Content-Type: application/json');
+    echo json_encode(['vat' => $vat]);
+    exit;
 }
 
 
@@ -1358,8 +1402,31 @@ array(
     'defaultSortDirection' => 'asc'
 ),
 
+// Debet VAT column
+array(
+    'field' => 'debet_vat',
+    'headerName' => findtekst('770|Moms', $sprog_id),
+    'type' => 'text',
+    'width' => '0.8',
+    'align' => 'center',
+    'sortable' => false,
+    'searchable' => false,
+    'render' => function($value, $row, $column) use ($regnaar) {
+        global $regnaar;
+        $vat = '';
+        $dtype = isset($row['d_type']) ? trim($row['d_type']) : '';
+        $debet = isset($row['debet']) ? trim($row['debet']) : '';
+        if ($debet && $dtype != 'D' && $dtype != 'K') {
+            $query2 = db_select("select moms from kontoplan where kontonr='$debet' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
+            if ($row2 = db_fetch_array($query2)) {
+                $vat = isset($row2['moms']) ? trim($row2['moms']) : '';
+            }
+        }
+        return "<td align='center'>" . htmlspecialchars($vat) . "</td>";
+    }
+),
 
-    
+
 	###########
     // D/K Type for Kredit
     array(
@@ -1419,7 +1486,31 @@ array(
 		},
 		'defaultSortDirection' => 'asc'
 	),
-    
+
+	// Kredit VAT column
+	array(
+		'field' => 'kredit_vat',
+		'headerName' => findtekst('770|Moms', $sprog_id),
+		'type' => 'text',
+		'width' => '0.8',
+		'align' => 'center',
+		'sortable' => false,
+		'searchable' => false,
+		'render' => function($value, $row, $column) use ($regnaar) {
+			global $regnaar;
+			$vat = '';
+			$ktype = isset($row['k_type']) ? trim($row['k_type']) : '';
+			$kredit = isset($row['kredit']) ? trim($row['kredit']) : '';
+			if ($kredit && $ktype != 'D' && $ktype != 'K') {
+				$query2 = db_select("select moms from kontoplan where kontonr='$kredit' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
+				if ($row2 = db_fetch_array($query2)) {
+					$vat = isset($row2['moms']) ? trim($row2['moms']) : '';
+				}
+			}
+			return "<td align='center'>" . htmlspecialchars($vat) . "</td>";
+		}
+	),
+
     // Faktura
     array(
         'field' => 'faktura',
@@ -2476,7 +2567,7 @@ $dropAttr = "";
 			</span></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$y' $de_fok value =\"$debet[$y]\" title='$debettext[$y]' onchange='javascript:docChange = true;'></td>\n";
-		print "<td><input class='inputbox' type='text' style='text-align:center;width:45px;background-color:#f5f5f5;' name='dvat$y' value=\"" . htmlspecialchars(if_isset($debetvat[$y], ''), ENT_QUOTES, $charset) . "\" readonly='readonly' tabindex='-1'></td>\n";
+		print "<td>" . render_vat_select("dvat$y", if_isset($debetvat[$y], ''), $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='k_ty$y' $de_fok value =\"$k_type[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (($d_type[$y] == 'D' || $d_type[$y] == 'K') && $debet[$y] && !$kredit[$y]) {
 			$libtxt = sidste_5($debet[$y], $d_type[$y], 'K');
@@ -2486,7 +2577,7 @@ $dropAttr = "";
 			</span></td>\n";
 		} else
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$y' $de_fok value =\"$kredit[$y]\" title= '$kredittext[$y]' onchange='javascript:docChange = true;'></td>\n";
-		print "<td><input class='inputbox' type='text' style='text-align:center;width:45px;background-color:#f5f5f5;' name='kvat$y' value=\"" . htmlspecialchars(if_isset($kreditvat[$y], ''), ENT_QUOTES, $charset) . "\" readonly='readonly' tabindex='-1'></td>\n";
+		print "<td>" . render_vat_select("kvat$y", if_isset($kreditvat[$y], ''), $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$y' $de_fok value =\"$faktura[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		if (!isset($valuta[$y])) $valuta[$y] = $baseCurrency;
 		if ($valuta[$y] == $baseCurrency) $title = "";
@@ -2734,14 +2825,12 @@ $dropAttr = "";
 		name='d_ty$x' $de_fok value =\"$d_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' 
 		name='debe$x' $de_fok value =\"$debet[$x]\" onchange='javascript:docChange = true;'></td>\n";
-		print "<td><input class='inputbox' type='text' style='text-align:center;width:45px;background-color:#f5f5f5;' 
-		name='dvat$x' value=\"" . htmlspecialchars(if_isset($debetvat[$x], ''), ENT_QUOTES, $charset) . "\" readonly='readonly' tabindex='-1'></td>\n";
-		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' 
+		print "<td>" . render_vat_select("dvat$x", if_isset($debetvat[$x], ''), $vat_codes, $charset) . "</td>\n";
+		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;'
 		name='k_ty$x' $de_fok value =\"$k_type[$x]\" onchange='javascript:docChange = true;'></td>\n";
-		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' 
+		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;'
 		name='kred$x' $de_fok value=\"$kredit[$x]\" onchange='javascript:docChange = true;'></td>\n";
-		print "<td><input class='inputbox' type='text' style='text-align:center;width:45px;background-color:#f5f5f5;' 
-		name='kvat$x' value=\"" . htmlspecialchars(if_isset($kreditvat[$x], ''), ENT_QUOTES, $charset) . "\" readonly='readonly' tabindex='-1'></td>\n";
+		print "<td>" . render_vat_select("kvat$x", if_isset($kreditvat[$x], ''), $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' 
 		name='fakt$x' $de_fok value=\"$faktura[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;' 
@@ -2820,8 +2909,10 @@ $dropAttr = "";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='d_ty$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='debe$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
+		print "<td>" . render_vat_select("dvat$z", '', $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:25px;' name='k_ty$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='kred$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
+		print "<td>" . render_vat_select("kvat$z", '', $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;' name='belo$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_afd)
@@ -4680,6 +4771,76 @@ document.addEventListener('DOMContentLoaded', function() {
 	$('input[name^="dato"]').datepickerDa();
 	// Initialize datepicker on Due Date fields
 	$('input[name^="forf"]').datepickerDa();
+
+	// VAT lookup for debit and credit account fields
+	function lookupVat(kontonr, vatField) {
+		if (!kontonr || kontonr.trim() === '') {
+			$(vatField).val('');
+			return;
+		}
+		$.post('kassekladde.php', {
+			action: 'lookup_vat',
+			kontonr: kontonr.trim(),
+			regnaar: '<?php echo $regnaar; ?>'
+		}, function(data) {
+			if (data && data.vat !== undefined) {
+				$(vatField).val(data.vat);
+			} else {
+				$(vatField).val('');
+			}
+		}, 'json').fail(function() {
+			$(vatField).val('');
+		});
+	}
+
+	// Attach change event to all debit fields
+	$(document).on('change', 'input[name^="debe"]', function() {
+		var name = $(this).attr('name');
+		var rowNum = name.replace('debe', '');
+		var dTypeVal = $('input[name="d_ty' + rowNum + '"]').val();
+		if (!dTypeVal || dTypeVal === '' || dTypeVal === 'F') {
+			lookupVat($(this).val(), 'input[name="dvat' + rowNum + '"]');
+		} else {
+			$('input[name="dvat' + rowNum + '"]').val('');
+		}
+	});
+
+	// Attach change event to all credit fields
+	$(document).on('change', 'input[name^="kred"]', function() {
+		var name = $(this).attr('name');
+		var rowNum = name.replace('kred', '');
+		var kTypeVal = $('input[name="k_ty' + rowNum + '"]').val();
+		if (!kTypeVal || kTypeVal === '' || kTypeVal === 'F') {
+			lookupVat($(this).val(), 'input[name="kvat' + rowNum + '"]');
+		} else {
+			$('input[name="kvat' + rowNum + '"]').val('');
+		}
+	});
+
+	// Also clear VAT when D/K type changes to D or K (debtor/creditor)
+	$(document).on('change', 'input[name^="d_ty"]', function() {
+		var name = $(this).attr('name');
+		var rowNum = name.replace('d_ty', '');
+		var dTypeVal = $(this).val();
+		if (dTypeVal === 'D' || dTypeVal === 'K') {
+			$('input[name="dvat' + rowNum + '"]').val('');
+		} else {
+			var debet = $('input[name="debe' + rowNum + '"]').val();
+			if (debet) lookupVat(debet, 'input[name="dvat' + rowNum + '"]');
+		}
+	});
+
+	$(document).on('change', 'input[name^="k_ty"]', function() {
+		var name = $(this).attr('name');
+		var rowNum = name.replace('k_ty', '');
+		var kTypeVal = $(this).val();
+		if (kTypeVal === 'D' || kTypeVal === 'K') {
+			$('input[name="kvat' + rowNum + '"]').val('');
+		} else {
+			var kredit = $('input[name="kred' + rowNum + '"]').val();
+			if (kredit) lookupVat(kredit, 'input[name="kvat' + rowNum + '"]');
+		}
+	});
 });
 </script>
 
