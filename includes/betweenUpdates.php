@@ -81,6 +81,16 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$qtxt = "ALTER TABLE datatables ADD COLUMN rowcount INT";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'offset'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$qtxt = "ALTER TABLE datatables ADD COLUMN offset INT";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'sort'";
+	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$qtxt = "ALTER TABLE datatables ADD COLUMN sort TEXT";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
 } else {
 	$qtxt = "CREATE TABLE datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id TEXT, column_setup TEXT, search_setup TEXT, ";
 	$qtxt.= "filter_setup TEXT, rowcount INTEGER, \"offset\" INTEGER, sort TEXT, date_range_meta TEXT)";
