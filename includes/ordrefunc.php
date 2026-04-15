@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-03-13 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-04-15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,7 @@
 // 20260312 PHR	Set valuta if not set in bogfor_nu.  
 // 20260313 Sawaneh SD-369 stock fallback in opret_ordrelinje commented out pending review
 // 20260313 PHR	Renamed Betalingskort to UnknownCard to avoid double posting if cardname is 'Betalingskort'
+// 20260415 PHR Modtag (Receive) was set to 0 when delivering a negative quantity
 
 function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 /* echo "<!--function levering start-->"; */
@@ -324,11 +325,10 @@ $fejl=0;
 				}
 				if ($leveres[$x] < 0 && $art == 'DO') {
 					$tidl_lev_do = 0;
-					$query = db_select("select antal from batch_salg where linje_id = '$linje_id[$x]' and ordre_id=$id", __FILE__ . " linje " . __LINE__);
-					while ($row = db_fetch_array($query))
-						$tidl_lev_do = $tidl_lev_do + $row['antal'];
-					if (abs($leveres[$x]) > abs($tidl_lev_do))
-						$leveres[$x] = $tidl_lev_do * -1;
+					$qtxt = "select antal from batch_salg where linje_id = '$linje_id[$x]' and ordre_id='$id'";
+					$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+					while ($row = db_fetch_array($query)) $tidl_lev_do = $tidl_lev_do + $row['antal'];
+					if (abs($leveres[$x]) < abs($tidl_lev_do)) $leveres[$x] = $tidl_lev_do * -1;
 				}
 			}
 			for ($x = 1; $x <= $linjeantal; $x++) {
