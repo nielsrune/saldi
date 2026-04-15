@@ -928,19 +928,22 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 		$maaneder = array('Januar','Februar','Marts','Maj','Juni', 'Juli','Oktober');
 */
 		$loendato=dkdato($loendate);
-		setlocale(LC_TIME, 'da_DK.UTF-8');
+		if ($sprog_id == 2) { $date_locale = 'en_GB'; $date_pattern = 'EEEE d MMMM y'; }
+		elseif ($sprog_id == 3) { $date_locale = 'nb_NO'; $date_pattern = 'EEEE d. MMMM y'; }
+		else { $date_locale = 'da_DK'; $date_pattern = 'EEEE d. MMMM y'; }
+		setlocale(LC_TIME, $date_locale.'.UTF-8');
 #		setlocale(LC_ALL, );
 		if ($loendate==NULL) {
 			$loen_datotext = NULL;
 		} else {
 
 			$fmt = new IntlDateFormatter(
-				'da_DK',
+				$date_locale,
 				IntlDateFormatter::FULL,
 				IntlDateFormatter::NONE,
 				'Europe/Copenhagen'
 			);
-			$fmt->setPattern('EEEE d. MMMM y');
+			$fmt->setPattern($date_pattern);
 			$loen_datotext = $fmt->format(new DateTime($loendate));
 #			if ($db_encode=='UTF8') $loen_datotext=utf8_encode($loen_datotext);
 
