@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-03-12 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-04-15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -71,10 +71,9 @@
 // 20260304 Sawaneh SD-369 dfm_url override from pickup address
 // 20260305 PHR removed quickfix 20260304 as it made delivey when order was saved
 // 20260313 Sawaneh SD-369 stock/lager changes commented out pending review
-
 // 20260312 PHR Fixed random product added when copying og crediting an order
 // 20260326 Sawaneh Fixed Fix ourRefStockSwitch order setting to find alternate warehouse when stock is empty
-
+// 20260415 PHR Modtag (Receive) was set to 0 in creditnote
 
 @session_start();
 $s_id = session_id();
@@ -1966,8 +1965,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					elseif ($antal[$x] > 0 && $leveres[$x] > $antal[$x]) {
 						$leveres[$x] = $antal[$x];
 					} elseif ($leveres[$x] < 0) {
-						if (abs($leveres[$x]) > abs($tidl_lev[$x]))
-							$leveres[$x] = $tidl_lev[$x] * -1;
+						if (abs($leveres[$x]) > abs($tidl_lev[$x]) && $art == 'DO') $leveres[$x] = $tidl_lev[$x] * -1; #20260415
 					}
 					if (!$rabat[$x]) $rabat[$x] = 0;
 					if (!$kostpris[$x]) $kostpris[$x] = 0;
