@@ -25,6 +25,10 @@
 // ----------------------------------------------------------------------
 // The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 
+# Enables docs (bilag)
+$qtxt = "update grupper set box6 = 'on' where art = 'bilag'";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
 $qtxt = "SELECT * FROM information_schema.columns WHERE table_name = 'adresser' and column_name = 'kontonr' limit 1";
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 if ($r['data_type'] == 'numeric') {
