@@ -1965,7 +1965,7 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 					elseif ($antal[$x] > 0 && $leveres[$x] > $antal[$x]) {
 						$leveres[$x] = $antal[$x];
 					} elseif ($leveres[$x] < 0) {
-						if (abs($leveres[$x]) > abs($tidl_lev[$x]) && $art == 'DO') $leveres[$x] = $tidl_lev[$x] * -1; #20260415
+						if (abs($leveres[$x]) > abs($tidl_lev[$x]) && $art == 'DO' && $antal[$x] > 0) $leveres[$x] = $tidl_lev[$x] * -1; #20260415
 					}
 					if (!$rabat[$x]) $rabat[$x] = 0;
 					if (!$kostpris[$x]) $kostpris[$x] = 0;
