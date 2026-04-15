@@ -83,7 +83,7 @@ if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	}
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'offset'";
 	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$qtxt = "ALTER TABLE datatables ADD COLUMN offset INT";
+		$qtxt = "ALTER TABLE datatables ADD COLUMN \"offset\" INT";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'datatables' and column_name = 'sort'";
