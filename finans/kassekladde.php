@@ -95,18 +95,59 @@ include("../includes/grid.php");
 
 // Build VAT codes list from grupper table (art 2nd char = 'M')
 $vat_codes = array();
+$allowed_vat_prefixes = array('S', 'K', 'Y', 'E');
 $vat_q = db_select("select kode, kodenr, beskrivelse, art from grupper where substring(art,2,1)='M' order by kode, kodenr", __FILE__ . " linje " . __LINE__);
 while ($vat_r = db_fetch_array($vat_q)) {
-    $vat_code = trim($vat_r['kode']) . trim($vat_r['kodenr']);
+    $vat_prefix = strtoupper(trim($vat_r['kode']));
+    if (!in_array($vat_prefix, $allowed_vat_prefixes, true)) {
+        continue;
+    }
+    $vat_code = $vat_prefix . trim($vat_r['kodenr']);
     if ($vat_code) {
         $vat_codes[$vat_code] = trim($vat_r['beskrivelse']);
     }
 }
 
+function normalize_vat_code($value, $vat_codes) {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+    return array_key_exists($value, $vat_codes) ? $value : '';
+}
+
+function get_saved_vat_code($row, $field) {
+    if (!is_array($row) || !array_key_exists($field, $row) || $row[$field] === null) {
+        return null;
+    }
+    return trim((string)$row[$field]);
+}
+
+function ensure_cash_vat_columns() {
+    $required_columns = array(
+        'tmpkassekl' => array('debetvat', 'kreditvat'),
+        'kassekladde' => array('debetvat', 'kreditvat')
+    );
+
+    foreach ($required_columns as $table_name => $columns) {
+        foreach ($columns as $column_name) {
+            $exists_q = db_select(
+                "select column_name from information_schema.columns where table_name='$table_name' and column_name='$column_name'",
+                __FILE__ . " linje " . __LINE__
+            );
+            if (!db_fetch_array($exists_q)) {
+                db_modify("ALTER TABLE $table_name ADD COLUMN $column_name varchar", __FILE__ . " linje " . __LINE__);
+            }
+        }
+    }
+}
+
+ensure_cash_vat_columns();
+
 // Helper function to render VAT select dropdown
 function render_vat_select($name, $selected_value, $vat_codes, $charset) {
-    $selected_value = trim($selected_value);
-    $html = "<select class='inputbox' name='$name' style='width:55px;font-size:11px;background-color:#f5f5f5;' tabindex='-1'>";
+    $selected_value = normalize_vat_code($selected_value, $vat_codes);
+    $html = "<select class='inputbox' name='" . htmlspecialchars($name, ENT_QUOTES, $charset) . "' style='width:55px;font-size:11px;background-color:#f5f5f5;' tabindex='-1' onchange='javascript:docChange = true;'>";
     $html .= "<option value=''></option>";
     foreach ($vat_codes as $code => $desc) {
         $sel = ($selected_value === $code) ? " selected='selected'" : '';
@@ -359,23 +400,23 @@ if ($_GET) {
 			if ($id[$x]) {
 				$qtxt = "update tmpkassekl set beskrivelse='" . db_escape_string($beskrivelse[$x]) . "',d_type='$d_type[$x]', ";
 				$qtxt.= "debet='$debet[$x]', k_type='$k_type[$x]', kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "',";
-				$qtxt.= "amount='$belob[$x]', momsfri='$momsfri[$x]', afd='$afd[$x]', projekt='$projekt[$x]', ansat='$ansat[$x]',";
+				$qtxt.= "amount='$belob[$x]', debetvat='$debetvat[$x]', kreditvat='$kreditvat[$x]', momsfri='$momsfri[$x]', afd='$afd[$x]', projekt='$projekt[$x]', ansat='$ansat[$x]',";
 				$qtxt.= "valuta='$valuta[$x]',forfaldsdate='$forfaldsdato[$x]',betal_id='$betal_id[$x]' ";
 				$qtxt.= "where id='$id[$x]' and kladde_id='$kladde_id'";
 			} elseif ($lobenr[$x]) {
 				$qtxt = "update tmpkassekl set bilag='$bilag[$x]',beskrivelse='" . db_escape_string($beskrivelse[$x]) . "',d_type='$d_type[$x]',";
 				$qtxt.= "debet='$debet[$x]', k_type='$k_type[$x]', kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "',";
-				$qtxt.= "amount='$belob[$x]', momsfri='$momsfri[$x]', afd='$afd[$x]', projekt='$projekt[$x]', ansat='$ansat[$x]',";
+				$qtxt.= "amount='$belob[$x]', debetvat='$debetvat[$x]', kreditvat='$kreditvat[$x]', momsfri='$momsfri[$x]', afd='$afd[$x]', projekt='$projekt[$x]', ansat='$ansat[$x]',";
 				$qtxt.= "valuta='$valuta[$x]',forfaldsdate='$forfaldsdato[$x]',betal_id='$betal_id[$x]' ";
 				$qtxt.= "where lobenr='$lobenr[$x]' and kladde_id='$kladde_id'";
 			} else {
 				$qtxt = "update tmpkassekl set bilag='$bilag[$x]',d_type='$d_type[$x]', debet='$debet[$x]', k_type='$k_type[$x]', ";
-				$qtxt.= "kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "', amount='$belob[$x]', momsfri='$momsfri[$x]',";
+				$qtxt.= "kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "', amount='$belob[$x]', debetvat='$debetvat[$x]', kreditvat='$kreditvat[$x]', momsfri='$momsfri[$x]',";
 				$qtxt.= "afd='$afd[$x]', projekt='$projekt[$x]', ansat='$ansat[$x]', valuta='$valuta[$x]',forfaldsdate='$forfaldsdato[$x]',";
 				$qtxt.= "betal_id='$betal_id[$x]' where lobenr='$x' and kladde_id='$kladde_id'";
 			}
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
+			kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
 		}
 		if ($fejl)
 			$submit = 'save';
@@ -458,6 +499,10 @@ if ($_POST) {
 		$k_type[$x] = substr(strtoupper(if_isset($_POST[$y], '')), 0, 1);
 		$y = "kred" . $x;
 		$kredit[$x] = trim(if_isset($_POST[$y], ''));
+		$y = "dvat" . $x;
+		$debetvat[$x] = normalize_vat_code(if_isset($_POST[$y], ''), $vat_codes);
+		$y = "kvat" . $x;
+		$kreditvat[$x] = normalize_vat_code(if_isset($_POST[$y], ''), $vat_codes);
 		$y = "fakt" . $x;
 		$faktura[$x] = trim(if_isset($_POST[$y], '')); #20130731
 		$y = "belo" . $x;
@@ -845,6 +890,7 @@ if ($_POST) {
 		if ($bilag[$x] == "-") {
 			$dato[$x] = $beskrivelse[$x] = $d_type[$x] = $debet[$x] = $k_type[$x] = $kredit[$x] = $faktura[$x] = $belob[$x] = $momsfri[$x] = $afd[$x] =
 				$projekt[$x] = $ansat[$x] = $valuta[$x] = $forfaldsdato[$x] = $betal_id[$x] = '';
+			$debetvat[$x] = $kreditvat[$x] = '';
 		}
 		if (!isset($id[$x]))
 			$id[$x] = '0';
@@ -867,6 +913,8 @@ if ($_POST) {
 			$debet[$x] = db_escape_string(if_isset($debet[$x], ''));
 			$k_type[$x] = db_escape_string(if_isset($k_type[$x], ''));
 			$kredit[$x] = db_escape_string(if_isset($kredit[$x], ''));
+			$debetvat[$x] = db_escape_string(if_isset($debetvat[$x], ''));
+			$kreditvat[$x] = db_escape_string(if_isset($kreditvat[$x], ''));
 			$faktura[$x] = db_escape_string(if_isset($faktura[$x], ''));
 			$belob[$x] = db_escape_string(if_isset($belob[$x], ''));
 			$momsfri[$x] = db_escape_string(if_isset($momsfri[$x], ''));
@@ -876,11 +924,11 @@ if ($_POST) {
 			$valuta[$x] = db_escape_string(if_isset($valuta[$x], ''));
 			$forfaldsdato[$x] = db_escape_string(if_isset($forfaldsdato[$x], ''));
 			$qtxt = "insert into tmpkassekl ";
-			$qtxt.= "(lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,";
+			$qtxt.= "(lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,debetvat,kreditvat,faktura,";
 			$qtxt.= "amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id) ";
 			$qtxt.= "values ";
 			$qtxt.= "('$x', '$id[$x]', '$bilag[$x]', '$dato[$x]', '$beskrivelse[$x]', '$d_type[$x]', '$debet[$x]', ";
-			$qtxt.= "'$k_type[$x]', '$kredit[$x]', '$faktura[$x]', '$belob[$x]', '$momsfri[$x]', '$afd[$x]', ";
+			$qtxt.= "'$k_type[$x]', '$kredit[$x]', '$debetvat[$x]', '$kreditvat[$x]', '$faktura[$x]', '$belob[$x]', '$momsfri[$x]', '$afd[$x]', ";
 			$qtxt.= "'$kladde_id', '$projekt[$x]', '$ansat[$x]', '$valuta[$x]','$forfaldsdato[$x]','$betal_id[$x]')";
 			#cho __line__." $qtxt<br>";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -968,12 +1016,16 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 							$belob[$x] = NULL;
 						if (!isset($momsfri[$x]))
 							$momsfri[$x] = NULL;
+						if (!isset($debetvat[$x]))
+							$debetvat[$x] = '';
+						if (!isset($kreditvat[$x]))
+							$kreditvat[$x] = '';
 						if (!isset($afd[$x]))
 							$afd[$x] = NULL;
 						if ((!$fejl) && ($x != $opslag_id) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) {
-							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
+							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
 						} elseif ((!$fejl) && ($x != $opslag_id) && ($bilag[$x] == "-")) {
-							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
+							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $debetvat[$x], $kreditvat[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
 						}
 					}
 					#cho __line__." $submit $debet[$x] $fokus $x<br>";
@@ -1413,10 +1465,11 @@ array(
     'searchable' => false,
     'render' => function($value, $row, $column) use ($regnaar) {
         global $regnaar;
-        $vat = '';
+        $saved_vat = get_saved_vat_code($row, 'debetvat');
+        $vat = ($saved_vat === null) ? '' : $saved_vat;
         $dtype = isset($row['d_type']) ? trim($row['d_type']) : '';
         $debet = isset($row['debet']) ? trim($row['debet']) : '';
-        if ($debet && $dtype != 'D' && $dtype != 'K') {
+        if ($saved_vat === null && $debet && $dtype != 'D' && $dtype != 'K') {
             $query2 = db_select("select moms from kontoplan where kontonr='$debet' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
             if ($row2 = db_fetch_array($query2)) {
                 $vat = isset($row2['moms']) ? trim($row2['moms']) : '';
@@ -1498,10 +1551,11 @@ array(
 		'searchable' => false,
 		'render' => function($value, $row, $column) use ($regnaar) {
 			global $regnaar;
-			$vat = '';
+			$saved_vat = get_saved_vat_code($row, 'kreditvat');
+			$vat = ($saved_vat === null) ? '' : $saved_vat;
 			$ktype = isset($row['k_type']) ? trim($row['k_type']) : '';
 			$kredit = isset($row['kredit']) ? trim($row['kredit']) : '';
-			if ($kredit && $ktype != 'D' && $ktype != 'K') {
+			if ($saved_vat === null && $kredit && $ktype != 'D' && $ktype != 'K') {
 				$query2 = db_select("select moms from kontoplan where kontonr='$kredit' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 				if ($row2 = db_fetch_array($query2)) {
 					$vat = isset($row2['moms']) ? trim($row2['moms']) : '';
@@ -2311,13 +2365,15 @@ if ($kladde_id) {
 		$d_type[$x] = trim($row['d_type']);
 		$debet[$x] = $row['debet'];
 		$debettext[$x] = NULL;
-		$debetvat[$x] = '';
+		$stored_debetvat = normalize_vat_code(get_saved_vat_code($row, 'debetvat'), $vat_codes);
+		$debetvat[$x] = ($stored_debetvat === null) ? '' : $stored_debetvat;
 		$k_type[$x] = $row['k_type'];
 		if ($k_type[$x] == "K" || $d_type[$x] == "D")
 			$vis_forfald = 1;
 		$kredit[$x] = $row['kredit'];
 		$kredittext[$x] = NULL;
-		$kreditvat[$x] = '';
+		$stored_kreditvat = normalize_vat_code(get_saved_vat_code($row, 'kreditvat'), $vat_codes);
+		$kreditvat[$x] = ($stored_kreditvat === null) ? '' : $stored_kreditvat;
 		$faktura[$x] = htmlentities($row['faktura'], ENT_QUOTES, $charset);
 		$saldo[$x] = $row['saldo'];
 		if ($fejl) {
@@ -2352,7 +2408,9 @@ if ($kladde_id) {
 			$query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$debet[$x]' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 			if ($row2 = db_fetch_array($query2)) {
 				$debettext[$x] = $row2['beskrivelse'];
-				$debetvat[$x] = trim(if_isset($row2['moms'], ''));
+				if ($stored_debetvat === null) {
+					$debetvat[$x] = trim(if_isset($row2['moms'], ''));
+				}
 				if (trim($row2['moms']))
 					$debettext[$x] = $debettext[$x] . "&nbsp;-&nbsp;" . trim($row2['moms']);
 			} else
@@ -2370,7 +2428,9 @@ if ($kladde_id) {
 			$query2 = db_select("select beskrivelse, moms from kontoplan where kontonr='$kredit[$x]' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 			if ($row2 = db_fetch_array($query2)) {
 				$kredittext[$x] = trim($row2['beskrivelse']);
-				$kreditvat[$x] = trim(if_isset($row2['moms'], ''));
+				if ($stored_kreditvat === null) {
+					$kreditvat[$x] = trim(if_isset($row2['moms'], ''));
+				}
 				if (trim($row2['moms']))
 					$kredittext[$x] = $kredittext[$x] . "&nbsp;-&nbsp;" . trim($row2['moms']);
 			} else
@@ -3041,7 +3101,7 @@ print "</form>";
 		print "<script>window.onload = function() { window.print(); };</script>";
 	}
 	#############################################################################################################################
-	function kontroller($id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $kladde_id, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr) {
+	function kontroller($id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $debetvat, $kreditvat, $kladde_id, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr) {
 		global $baseCurrency,$bilagscount,$bilagsrenum;
 		global $connection;
 		global $debitornr;
@@ -3437,10 +3497,10 @@ print "</form>";
 					$bilagsrenum = true; #20160909 ja, der skal renummereres bilag
 				}
 				if ($bilagsrenum == true) { #20160909 denne bliver loopet igennem for hvert eneste efterfølgende bilag - vi overskriver bilagsunmmeret
-					$qtxt = "update tmpkassekl set bilag = '$bilagscount', transdate = '$dato', beskrivelse = '$beskrivelse', d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', amount = '$belob', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', valuta= '$valuta',forfaldsdate='$forfaldsdato',betal_id='$betal_id' where lobenr = '$lobenr' and kladde_id='$kladde_id'";
+					$qtxt = "update tmpkassekl set bilag = '$bilagscount', transdate = '$dato', beskrivelse = '$beskrivelse', d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', debetvat = '$debetvat', kreditvat = '$kreditvat', faktura = '$faktura', amount = '$belob', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', valuta= '$valuta',forfaldsdate='$forfaldsdato',betal_id='$betal_id' where lobenr = '$lobenr' and kladde_id='$kladde_id'";
 					$bilagscount++; #20160909 og her øger vi bilagsnummeret med 1 inden loop
 				} else {
-					$qtxt = "update tmpkassekl set bilag = '$bilag', transdate = '$dato', beskrivelse = '$beskrivelse', d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', amount = '$belob', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', valuta= '$valuta',forfaldsdate='$forfaldsdato',betal_id='$betal_id' where lobenr = '$lobenr' and kladde_id='$kladde_id'";
+					$qtxt = "update tmpkassekl set bilag = '$bilag', transdate = '$dato', beskrivelse = '$beskrivelse', d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', debetvat = '$debetvat', kreditvat = '$kreditvat', faktura = '$faktura', amount = '$belob', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', valuta= '$valuta',forfaldsdate='$forfaldsdato',betal_id='$betal_id' where lobenr = '$lobenr' and kladde_id='$kladde_id'";
 				}
 
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -3502,6 +3562,8 @@ print "</form>";
 					$valutakode = 0; #Valutakode 0 er altid $baseCurrency
 				$betal_id = $r['betal_id'];
 				$beskrivelse = db_escape_string(if_isset($r['beskrivelse'], ''));
+				$debetvat = db_escape_string(if_isset($r['debetvat'], ''));
+				$kreditvat = db_escape_string(if_isset($r['kreditvat'], ''));
 				if ($amount < 0) { # Hvis beloebet er negativt, byttes om paa debet og kredit.
 					$tmp = $kredit;
 					$kredit = $debet;
@@ -3509,6 +3571,9 @@ print "</form>";
 					$tmp = $k_type;
 					$k_type = $d_type;
 					$d_type = $tmp;
+					$tmp = $kreditvat;
+					$kreditvat = $debetvat;
+					$debetvat = $tmp;
 					$amount = $amount * -1;
 				}
 
@@ -3526,7 +3591,7 @@ print "</form>";
 					}
 					$qtxt = "update kassekladde set bilag = '$bilag', transdate = '$transdate', beskrivelse = '$beskrivelse', ";
 					$qtxt .= "d_type = '$d_type', debet = '$debet', k_type = '$k_type', kredit = '$kredit', faktura = '$faktura', ";
-					$qtxt .= "amount = '$amount', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', ansat= '$ansat_id', ";
+					$qtxt .= "amount = '$amount', debetvat = '$debetvat', kreditvat = '$kreditvat', momsfri = '$momsfri', afd= '$afd', projekt= '$projekt', ansat= '$ansat_id', ";
 					$qtxt .= "valuta= '$valutakode' where id = '$r[id]'";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					if ($forfaldsdate) {
@@ -3555,10 +3620,10 @@ print "</form>";
 						$next_pos = $ins_pos_r['max_pos'] + 1;
 						// Shift all entries at or after the insertion point to make room.
 						db_modify("UPDATE kassekladde SET pos = pos + 1 WHERE kladde_id = '$kladde_id' AND pos >= '$next_pos'", __FILE__ . " linje " . __LINE__);
-						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
+						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, debetvat, kreditvat, ";
 						$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id,forfaldsdate,betal_id, pos)";
 						$qtxt .= "values ";
-						$qtxt .= "('$insert_bilag', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
+						$qtxt .= "('$insert_bilag', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', '$debetvat', '$kreditvat', ";
 						$qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', ";
 						$qtxt .= "'$kladde_id','$forfaldsdate','$betal_id', '$next_pos')";
 					} elseif (($r['bilag'] || $r['bilag'] == '0') && ($beskrivelse || $debet || $kredit || $amount)) {
@@ -3569,10 +3634,10 @@ print "</form>";
 						$next_pos = $ins_pos_r['max_pos'] + 1;
 						// Shift all entries at or after the insertion point to make room.
 						db_modify("UPDATE kassekladde SET pos = pos + 1 WHERE kladde_id = '$kladde_id' AND pos >= '$next_pos'", __FILE__ . " linje " . __LINE__);
-						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
+						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, debetvat, kreditvat, ";
 						$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id, pos)";
 						$qtxt .= " values ";
-						$qtxt .= "('$insert_bilag', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
+						$qtxt .= "('$insert_bilag', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', '$debetvat', '$kreditvat', ";
 						$qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', '$kladde_id', '$next_pos')";
 					}
 					if ($qtxt) {
@@ -3717,7 +3782,7 @@ print "</form>";
 			$projekt = $r['projekt'];
 			$valutakode = $r['valutakode'] * 1;
 			#20140718
-			db_modify("insert into kassekladde (bilag,kladde_id,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,momsfri,afd,ansat,projekt,valuta) values ('$r[bilag]','$ompost_til','$r[transdate]','" . db_escape_string(if_isset($r['beskrivelse'], '')) . "','$r[k_type]','$r[kredit]','$r[d_type]','$r[debet]','$r[faktura]','$r[amount]','$r[momsfri]','$afd','$ansat','$projekt','$valutakode')", __FILE__ . " linje " . __LINE__);
+			db_modify("insert into kassekladde (bilag,kladde_id,transdate,beskrivelse,d_type,debet,k_type,kredit,debetvat,kreditvat,faktura,amount,momsfri,afd,ansat,projekt,valuta) values ('$r[bilag]','$ompost_til','$r[transdate]','" . db_escape_string(if_isset($r['beskrivelse'], '')) . "','$r[k_type]','$r[kredit]','$r[d_type]','$r[debet]','" . db_escape_string(if_isset($r['kreditvat'], '')) . "','" . db_escape_string(if_isset($r['debetvat'], '')) . "','$r[faktura]','$r[amount]','$r[momsfri]','$afd','$ansat','$projekt','$valutakode')", __FILE__ . " linje " . __LINE__);
 			print "<body onLoad=\"javascript:alert('".findtekst('2596|Posteringen er tilbageført på kladde', $sprog_id)." $ompost_til')\">";
 		}
 	} # endfunc ompost
@@ -4799,9 +4864,9 @@ document.addEventListener('DOMContentLoaded', function() {
 		var rowNum = name.replace('debe', '');
 		var dTypeVal = $('input[name="d_ty' + rowNum + '"]').val();
 		if (!dTypeVal || dTypeVal === '' || dTypeVal === 'F') {
-			lookupVat($(this).val(), 'input[name="dvat' + rowNum + '"]');
+			lookupVat($(this).val(), 'select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]');
 		} else {
-			$('input[name="dvat' + rowNum + '"]').val('');
+			$('select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]').val('');
 		}
 	});
 
@@ -4811,9 +4876,9 @@ document.addEventListener('DOMContentLoaded', function() {
 		var rowNum = name.replace('kred', '');
 		var kTypeVal = $('input[name="k_ty' + rowNum + '"]').val();
 		if (!kTypeVal || kTypeVal === '' || kTypeVal === 'F') {
-			lookupVat($(this).val(), 'input[name="kvat' + rowNum + '"]');
+			lookupVat($(this).val(), 'select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]');
 		} else {
-			$('input[name="kvat' + rowNum + '"]').val('');
+			$('select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]').val('');
 		}
 	});
 
@@ -4823,10 +4888,10 @@ document.addEventListener('DOMContentLoaded', function() {
 		var rowNum = name.replace('d_ty', '');
 		var dTypeVal = $(this).val();
 		if (dTypeVal === 'D' || dTypeVal === 'K') {
-			$('input[name="dvat' + rowNum + '"]').val('');
+			$('select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]').val('');
 		} else {
 			var debet = $('input[name="debe' + rowNum + '"]').val();
-			if (debet) lookupVat(debet, 'input[name="dvat' + rowNum + '"]');
+			if (debet) lookupVat(debet, 'select[name="dvat' + rowNum + '"], input[name="dvat' + rowNum + '"]');
 		}
 	});
 
@@ -4835,10 +4900,10 @@ document.addEventListener('DOMContentLoaded', function() {
 		var rowNum = name.replace('k_ty', '');
 		var kTypeVal = $(this).val();
 		if (kTypeVal === 'D' || kTypeVal === 'K') {
-			$('input[name="kvat' + rowNum + '"]').val('');
+			$('select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]').val('');
 		} else {
 			var kredit = $('input[name="kred' + rowNum + '"]').val();
-			if (kredit) lookupVat(kredit, 'input[name="kvat' + rowNum + '"]');
+			if (kredit) lookupVat(kredit, 'select[name="kvat' + rowNum + '"], input[name="kvat' + rowNum + '"]');
 		}
 	});
 });
