@@ -1021,7 +1021,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 			$loenart_2 = array(findtekst('2801|Timepris Akkord', $sprog_id),findtekst('2802|Timeløn', $sprog_id),findtekst('2803|Timeløn Tørretid', $sprog_id),findtekst('2804|Pladsarbejde', $sprog_id),findtekst('2805|Skoleophold', $sprog_id),findtekst('2806|Sygdom', $sprog_id),findtekst('2807|Barn syg', $sprog_id),findtekst('2808|Ferie', $sprog_id));
 		} else {
 			$loenart_1 = array('aconto','akktimer','akk_afr','akkord','timer','kontor','plads','skole','sygdom','barn_syg','ferie');
-			$loenart_2 = array(findtekst('2998|Aconto', $sprog_id),findtekst('2809|Dyrtid', $sprog_id),findtekst('2810|Akkord afregning', $sprog_id),findtekst('2811|Akkord med dyrtid', $sprog_id),findtekst('2802|Timeløn', $sprog_id),findtekst('2999|Kontorarbejde', $sprog_id),findtekst('2804|Pladsarbejde', $sprog_id),findtekst('2805|Skoleophold', $sprog_id),findtekst('2806|Sygdom', $sprog_id),findtekst('2807|Barn syg', $sprog_id),findtekst('2808|Ferie', $sprog_id));
+			$loenart_2 = array(findtekst('2998|Aconto', $sprog_id),findtekst('2809|Dyrtid', $sprog_id),findtekst('2810|Akkordafregning', $sprog_id),findtekst('2811|Akkord med dyrtid', $sprog_id),findtekst('2802|Timeløn', $sprog_id),findtekst('2999|Kontorarbejde', $sprog_id),findtekst('2804|Pladsarbejde', $sprog_id),findtekst('2805|Skoleophold', $sprog_id),findtekst('2806|Sygdom', $sprog_id),findtekst('2807|Barn syg', $sprog_id),findtekst('2808|Ferie', $sprog_id));
 		}
 		print "<div class=\"content\">
 			<h3>".findtekst('2785|Lønindtastning', $sprog_id)."</h3>
