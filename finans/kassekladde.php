@@ -130,7 +130,6 @@ function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_code
     if ($account_no === '' || ($account_type !== '' && $account_type !== 'F')) {
         return '';
     }
-// 
     $qtxt = "select moms from kontoplan where kontonr='" . db_escape_string($account_no) . "' and regnskabsaar='" . db_escape_string($regnaar) . "'";
     $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
     if ($row = db_fetch_array($query)) {
