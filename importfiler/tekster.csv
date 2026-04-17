@@ -552,7 +552,7 @@
 552	Valuta / Kurs	Currency / Exchange rate	Valuta / Kurs
 553	Projekt	Project	Prosjekt
 554	Leveringsadresse	Delivery Address	Leveringsadresse
-555	Godkend	Approve	Godkjen
+555	Godkend	Approve	Godkjenn
 556	Alle varegrupper	All product groups	Alle produktgrupper
 557	Forbrugssvarer	Consumer products	Forbruksvarer
 558	Vis søgefelt for kreditorer	Show search box for creditors	Vis søkefelt for kreditorer
@@ -2790,7 +2790,7 @@
 2790	Overført	Transferred	Overført
 2791	Godk./Afv.	Appr./Rej.	Godk./Avv.
 2792	Sag	Project	Sak
-2793	Ansvarlig	Assigned	Ansvarlig
+2793	Ansvarlig	Responsible	Ansvarlig
 2794	Medarb.	Empl.	Medarb.
 2795	Sum	Total	Sum
 2796	Slet sortering	Clear sorting	Slett sortering
@@ -3052,7 +3052,7 @@
 3052	Kilometer	Kilometres	Kilometer
 3053	Sagsadresse	Project address	Saksadresse
 3054	Med. nr.	Emp. no.	Med. nr.
-3055	Medarbejder navn	Employee name	Medarbeider navn
+3055	Medarbejdernavn	Employee name	Medarbeidernavn
 3056	Transport	Transport	Transport
 3057	Sum inkl. transport	Total incl. transport	Sum inkl. transport
 3058	Telttillæg	Tent surcharge	Telttillegg

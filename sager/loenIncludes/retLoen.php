@@ -348,7 +348,7 @@ function ret_loen() {
 			$ferietil_error       = NULL;
 		}
 		if(!$loen_tekst && ((strstr($loen_art,'akk')) || $loen_art=='aconto' || $loen_art=='regulering' || $loen_art=='timer' || $loen_art=='kontor')) {
-			$loentext_errortxt = "<span style=\"color: red;\">".findtekst('3025|&apos;Udført&apos; er ikke udfyldt', $sprog_id)."</span>";
+			$loentext_errortxt = "<span style=\"color: red;\">".findtekst('3025|Udført er ikke udfyldt', $sprog_id)."</span>";
 			$loentext_error    = "style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 			//print "<BODY onLoad=\"javascript:alert('Udført er ikke udfyldt')\">"; // laves o til css-validering??
 		} else {
@@ -982,7 +982,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 		$ferietil_error       = NULL;
 	}
 	if(!$loen_tekst && ((strstr($loen_art,'akk')) || $loen_art=='aconto' || $loen_art=='regulering' || $loen_art=='timer' || $loen_art=='kontor')) {
-		$loentext_errortxt = "<span style=\"color: red;\">".findtekst('3025|&apos;Udført&apos; er ikke udfyldt', $sprog_id)."</span>";
+		$loentext_errortxt = "<span style=\"color: red;\">".findtekst('3025|Udført er ikke udfyldt', $sprog_id)."</span>";
 		$loentext_error = "style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;width: 560px;\"";
 		//print "<BODY onLoad=\"javascript:alert('Udført er ikke udfyldt')\">"; // laves o til css-validering??
 	} else {
@@ -1018,7 +1018,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 		}
 		if ($db=='stillads_14' || $db=='udvikling_2') {
 			$loenart_1 = array('akkord','timer','torretid','plads','skole','sygdom','barn_syg','ferie');
-			$loenart_2 = array(findtekst('2801|Timepris Akkord', $sprog_id),findtekst('2802|Timeløn', $sprog_id),findtekst('2803|Timeløn Tørretid', $sprog_id),findtekst('2804|Pladsarbejde', $sprog_id),findtekst('2805|Skoleophold', $sprog_id),findtekst('2806|Sygdom', $sprog_id),findtekst('2807|Barn syg', $sprog_id),findtekst('2808|Ferie', $sprog_id));
+			$loenart_2 = array(findtekst('2801|Timepris, Akkord', $sprog_id),findtekst('2802|Timeløn', $sprog_id),findtekst('2803|Timeløn, Tørretid', $sprog_id),findtekst('2804|Pladsarbejde', $sprog_id),findtekst('2805|Skoleophold', $sprog_id),findtekst('2806|Sygdom', $sprog_id),findtekst('2807|Barn syg', $sprog_id),findtekst('2808|Ferie', $sprog_id));
 		} else {
 			$loenart_1 = array('aconto','akktimer','akk_afr','akkord','timer','kontor','plads','skole','sygdom','barn_syg','ferie');
 			$loenart_2 = array(findtekst('2998|Aconto', $sprog_id),findtekst('2809|Dyrtid', $sprog_id),findtekst('2810|Akkordafregning', $sprog_id),findtekst('2811|Akkord med dyrtid', $sprog_id),findtekst('2802|Timeløn', $sprog_id),findtekst('2999|Kontorarbejde', $sprog_id),findtekst('2804|Pladsarbejde', $sprog_id),findtekst('2805|Skoleophold', $sprog_id),findtekst('2806|Sygdom', $sprog_id),findtekst('2807|Barn syg', $sprog_id),findtekst('2808|Ferie', $sprog_id));
@@ -1348,7 +1348,7 @@ if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
 					print "<tr>\n";
 						if ($loen_art=='akk_afr') print "<td title='".findtekst('3050|Akkord seddel nr.', $sprog_id).": $akkord_nr[$x]'><input type='text' $beskyttet placeholder='".findtekst('438|Dato', $sprog_id)."' name='loen_date[$x]' class='medarbejdernr printBorderNone' value='".dkdato($loen_date[$x])."' style='width:66px;'></td>\n";
 						print "<td><input type='text' $beskyttet placeholder='".findtekst('3054|Med. nr.', $sprog_id)."' name='medarb_nr[$x]' class='medarbejdernr printBorderNone' value='$medarb_nr[$x]' style='width:56px;'></td>
-						<td><input type='text' $beskyttet placeholder='".findtekst('3055|Medarbejder navn', $sprog_id)."' name='medarb_navn[$x]' class='medarbejdernavn printBorderNone' value='$medarb_navn[$x]' style='width:260px'>\n";
+						<td><input type='text' $beskyttet placeholder='".findtekst('3055|Medarbejdernavn', $sprog_id)."' name='medarb_navn[$x]' class='medarbejdernavn printBorderNone' value='$medarb_navn[$x]' style='width:260px'>\n";
 						if ($loen_art!='ferie') print "</td>\n";
 						if ($loen_art=='timer') {
 							print "<td>";
