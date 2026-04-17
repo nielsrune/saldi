@@ -158,17 +158,12 @@
         const basePath = '../debitor/';
         const kassePath = '../finans/kassekladde_includes/';
 
-        const kontoInput = document.querySelector('input[name="konto_id"]');
-        const kontoId = kontoInput ? parseInt(kontoInput.value) : 0;
-
         switch (type) {
             case 'item':
                 url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value);
-                if (kontoId > 0) url += '&konto_id=' + kontoId;
                 break;
             case 'lev_item':
                 url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value) + '&search_field=lev_varenr';
-                if (kontoId > 0) url += '&konto_id=' + kontoId;
                 break;
             case 'customer':
                 url = kassePath + 'accountSearch.php?type=kreditor&search=' + encodeURIComponent(value);
@@ -306,11 +301,19 @@
         const dropdownHeight = 450;
         const windowHeight = window.innerHeight;
 
-        let top = rect.bottom + window.scrollY;
+        const spaceBelow = windowHeight - rect.bottom;
+        const spaceAbove = rect.top;
 
-        // If dropdown would go off screen, show it above the input
-        if (rect.bottom + dropdownHeight > windowHeight) {
-            top = rect.top + window.scrollY - dropdownHeight;
+        let top;
+        if (spaceBelow >= dropdownHeight || spaceBelow >= spaceAbove) {
+            // Show below — cap height to available space so it doesn't go off screen
+            top = rect.bottom + window.scrollY;
+            dropdown.style.maxHeight = Math.min(dropdownHeight, spaceBelow - 4) + 'px';
+        } else {
+            // Show above — cap height to available space so it doesn't cover the field
+            const availableAbove = Math.min(dropdownHeight, spaceAbove - 4);
+            top = rect.top + window.scrollY - availableAbove;
+            dropdown.style.maxHeight = availableAbove + 'px';
         }
 
         dropdown.style.top = top + 'px';

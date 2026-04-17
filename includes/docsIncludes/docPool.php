@@ -1081,13 +1081,19 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		if (file_exists("../../css")) $cssPath = "../../css";
 		elseif (file_exists("../../../css")) $cssPath = "../../../css";
 	}
-	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css\">\n";
-	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css\">\n";
-	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/accountAutocomplete.css\">\n";
-    print '<link rel="stylesheet" type="text/css" href="../css/datepickerDa.css">';
+	$v1 = @filemtime("$cssPath/docpool-variables.css") ?: 0;
+	$v2 = @filemtime("$cssPath/docpool.css") ?: 0;
+	$v3 = @filemtime("../css/accountAutocomplete.css") ?: 0;
+	$v4 = @filemtime("../css/datepickerDa.css") ?: 0;
+	$v5 = @filemtime("../javascript/accountAutocomplete.js") ?: 0;
+	$v6 = @filemtime("../javascript/datepickerDa.js") ?: 0;
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css?v=$v1\">\n";
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css?v=$v2\">\n";
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/accountAutocomplete.css?v=$v3\">\n";
+    print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/datepickerDa.css?v=$v4\">";
     print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
-	print '<script src="../javascript/accountAutocomplete.js"></script>';
-    print '<script src="../javascript/datepickerDa.js"></script>';
+	print "<script src=\"../javascript/accountAutocomplete.js?v=$v5\"></script>";
+    print "<script src=\"../javascript/datepickerDa.js?v=$v6\"></script>";
 	// SVG icon definitions (inline SVGs from iconsvg.xyz style)
 	print "<style>
 		.icon-svg { display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em; fill: none; stroke: currentColor; }
@@ -1153,6 +1159,7 @@ $svgPointer = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="cur
 $svgPencil = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>';
 $svgTrash = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
 $svgSave = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>';
+$svgCopy = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
 $svgX = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
 $svgTable = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>';
 $svgGrid = '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>';
@@ -1181,175 +1188,306 @@ if (strpos($currentFile, $docRoot) === 0) {
 
 print "<div id='docPoolContainer'>";
 print "<script>console.time('docPoolRender');</script>";
-print "<div id='leftPanel'>";
 
-// Display kassekladde information if inserting to existing entry (just above the list)
-if ($source == 'kassekladde' && $sourceId) {
-	$qtxt = "select bilag, beskrivelse, transdate, debet, kredit, faktura, amount, kladde_id from kassekladde where id = '$sourceId'";
-	$kladdeInfo = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-    
-    $prevId = 0;
-    $nextId = 0;
-	if ($kladdeInfo) {
-        // Find previous and next IDs in the same kassekladde
-        $currentKladdeId = $kladdeInfo['kladde_id'];
-        if ($currentKladdeId) {
-            $qPrev = db_select("select id from kassekladde where kladde_id = '$currentKladdeId' and id < '$sourceId' order by id desc limit 1", __FILE__ . " linje " . __LINE__);
-            if ($rPrev = db_fetch_array($qPrev)) $prevId = $rPrev['id'];
+// ---- KASSEBILAG TOP BAR (above the left/right split) ----
+if ($source == 'kassekladde') {
+	$prevId = 0;
+	$nextId = 0;
+	$currentKladdeId = 0;
 
-            $qNext = db_select("select id from kassekladde where kladde_id = '$currentKladdeId' and id > '$sourceId' order by id asc limit 1", __FILE__ . " linje " . __LINE__);
-            if ($rNext = db_fetch_array($qNext)) $nextId = $rNext['id'];
-        }
+	$inStyle = "padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; height: 26px; box-sizing: border-box;";
+	$btnStyle = "color: $buttonTxtColor; text-decoration: none; display: flex; align-items: center; background-color: $buttonColor; padding: 3px 8px; border-radius: 3px; font-weight: bold; font-size: 12px;";
+	$btnStyleDisabled = "color: #999; text-decoration: none; display: flex; align-items: center; background-color: #eee; padding: 3px 8px; border-radius: 3px; font-weight: bold; font-size: 12px; border: 1px solid #ccc;";
 
-		$displayBilag = $kladdeInfo['bilag'];
-		$displayBeskrivelse = $kladdeInfo['beskrivelse'] ? htmlspecialchars($kladdeInfo['beskrivelse']) : '';
-		$displayDato = dkdato($kladdeInfo['transdate']);
-		$displayDebet = $kladdeInfo['debet'] ? $kladdeInfo['debet'] : '';
-		$displayKredit = $kladdeInfo['kredit'] ? $kladdeInfo['kredit'] : '';
-		$displayFaktura = $kladdeInfo['faktura'] ? htmlspecialchars($kladdeInfo['faktura']) : '';
-		$displayAmount = $kladdeInfo['amount'] ? dkdecimal($kladdeInfo['amount']) : '';
-		
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
-	print "<tr>";
-	print "<td style=\"background-color: $buttonColor; color: $buttonTxtColor; padding: 8px; border: 1px solid #ddd;\">";
-	print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\"><span id=\"entryTitle\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Bilag #" . htmlspecialchars($displayBilag) . "</span></font>";
-	print "</td></tr>";
-		print "<tr><td style=\"background-color: " . (isset($bgcolor5) ? $bgcolor5 : '#ffffff') . "; padding: 8px; border: 1px solid #ddd; border-top: none;\">";
-		print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"4\" style=\"font-family: Arial, sans-serif; font-size: 12px;\">";
-		// Row 1: Dato + Fakturanr
-		print "<tr>";
-		print "<td width=\"12%\" style=\"font-weight: bold;\">Dato:</td>";
-		print "<td width=\"30%\"><input type=\"text\" name=\"dato\" id=\"existingEntryDato\" value=\"" . htmlspecialchars($displayDato) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"dd-mm-yyyy\"></td>";
-		print "<td width=\"12%\" style=\"font-weight: bold; padding-left: 10px;\">Fakturanr:</td>";
-		print "<td><input type=\"text\" name=\"fakturanr\" id=\"existingEntryFaktura\" value=\"" . $displayFaktura . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Fakturanr\"></td>";
-		print "</tr>";
-		// Row 2: Beskrivelse
-		print "<tr>";
-		print "<td style=\"font-weight: bold;\">Beskrivelse:</td>";
-		print "<td colspan=\"3\"><input type=\"text\" name=\"beskrivelse\" id=\"existingEntryBeskrivelse\" value=\"" . $displayBeskrivelse . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast beskrivelse...\"></td>";
-		print "</tr>";
-		// Row 3: Debet + Kredit
-		print "<tr>";
-		print "<td style=\"font-weight: bold;\">Debet:</td>";
-		print "<td><input type=\"text\" name=\"debet\" id=\"existingEntryDebet\" value=\"" . htmlspecialchars($displayDebet) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Debet konto\"></td>";
-		print "<td style=\"font-weight: bold; padding-left: 10px;\">Kredit:</td>";
-		print "<td><input type=\"text\" name=\"kredit\" id=\"existingEntryKredit\" value=\"" . htmlspecialchars($displayKredit) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Kredit konto\"></td>";
-		print "</tr>";
-		// Row 4: Beløb
-		print "<tr>";
-		print "<td style=\"font-weight: bold;\">Beløb:</td>";
-		print "<td colspan=\"3\"><input type=\"text\" name=\"sum\" id=\"existingEntryAmount\" value=\"" . htmlspecialchars($displayAmount) . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Beløb\"></td>";
-		print "</tr>";
-	print "</table>";
-    
-    // Buttons in grey area
-    print "<div style=\"display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #ccc;\">";
-    
-    // Style for buttons
-    $btnStyle = "color: $buttonTxtColor; text-decoration: none; display: flex; align-items: center; background-color: $buttonColor; padding: 6px 12px; border-radius: 3px; font-weight: bold; font-size: 13px;";
-    $btnStyleDisabled = "color: #999; text-decoration: none; display: flex; align-items: center; background-color: #eee; padding: 6px 12px; border-radius: 3px; font-weight: bold; font-size: 13px; border: 1px solid #ccc;";
-
-    // Previous Button
-    if ($prevId) {
-        $prevUrl = "?source=kassekladde&kladde_id=$currentKladdeId&sourceId=$prevId&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
-        print "<a href=\"documents.php$prevUrl\" title=\"Forrige linje\" style=\"$btnStyle\">$svgChevronLeft Forrige</a>";
-    } else {
-        print "<span style=\"$btnStyleDisabled\">$svgChevronLeft Forrige</span>";
-    }
-
-    // Save Button
-    print "<a href=\"#\" onclick=\"saveEntry(); return false;\"  title=\"Gem ændringer\" style=\"$btnStyle\">$svgSave &nbsp;Gem</a>";
-
-    // Next Button
-    if ($nextId) {
-        $nextUrl = "?source=kassekladde&kladde_id=$currentKladdeId&sourceId=$nextId&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
-        print "<a href=\"documents.php$nextUrl\" title=\"Næste linje\" style=\"$btnStyle\">Næste $svgChevronRight</a>";
-    } else {
-         // If no next ID, link to create new line
-         $nextUrl = "?source=kassekladde&kladde_id=$currentKladdeId&sourceId=0&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
-         print "<a href=\"documents.php$nextUrl\" title=\"Ny linje\" style=\"$btnStyle\">Ny linje $svgChevronRight</a>";
-    }
-    
-    print "</div>";
-
-	print "</td></tr>";
-	print "</tbody></table>";
+	if ($sourceId) {
+		$qtxt = "select bilag, beskrivelse, transdate, d_type, debet, k_type, kredit, faktura, amount, kladde_id, afd, ansat, projekt, valuta, momsfri, forfaldsdate from kassekladde where id = '$sourceId'";
+		$kladdeInfo = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($kladdeInfo) {
+			$currentKladdeId = $kladdeInfo['kladde_id'];
+			if ($currentKladdeId) {
+				$qPrev = db_select("select id from kassekladde where kladde_id = '$currentKladdeId' and id < '$sourceId' order by id desc limit 1", __FILE__ . " linje " . __LINE__);
+				if ($rPrev = db_fetch_array($qPrev)) $prevId = $rPrev['id'];
+				$qNext = db_select("select id from kassekladde where kladde_id = '$currentKladdeId' and id > '$sourceId' order by id asc limit 1", __FILE__ . " linje " . __LINE__);
+				if ($rNext = db_fetch_array($qNext)) $nextId = $rNext['id'];
+			}
+			$displayBilag       = $kladdeInfo['bilag'];
+			$displayDato        = dkdato($kladdeInfo['transdate']);
+			$displayFaktura     = htmlspecialchars($kladdeInfo['faktura'] ?? '');
+			$displayBeskrivelse = htmlspecialchars($kladdeInfo['beskrivelse'] ?? '');
+			$displayDebet       = htmlspecialchars($kladdeInfo['debet'] ?? '');
+			$displayKredit      = htmlspecialchars($kladdeInfo['kredit'] ?? '');
+			$displayAmount      = $kladdeInfo['amount'] ? dkdecimal($kladdeInfo['amount']) : '';
+			$displayAfd         = htmlspecialchars($kladdeInfo['afd'] ?? '');
+			$displayProjekt     = htmlspecialchars($kladdeInfo['projekt'] ?? '');
+			$displayValutaNr = (int)($kladdeInfo['valuta'] ?? 0);
+			if ($displayValutaNr) {
+				$vkRow = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art='VK' AND kodenr='$displayValutaNr'", __FILE__ . " linje " . __LINE__));
+				$displayValuta = htmlspecialchars($vkRow['box1'] ?? '');
+			} else {
+				$displayValuta = '';
+			}
+			$displayMomsfri     = !empty($kladdeInfo['momsfri']) ? 1 : 0;
+			$displayForfald     = $kladdeInfo['forfaldsdate'] ? dkdato($kladdeInfo['forfaldsdate']) : '';
+			$pfx = 'existingEntry';
+		}
 	}
-} elseif ($source == 'kassekladde' && empty($sourceId)) {
-	// Show editable fields if creating new entry (sourceId is 0 or empty)
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
-	print "<tr>";
-	print "<td style=\"background-color: $buttonColor; color: $buttonTxtColor; padding: 8px; border: 1px solid #ddd;\">";
-    
-    // Find previous ID (last ID in the kladde)
-    $prevId = 0;
-    $currentKladdeId = isset($_GET['kladde_id']) ? (int)$_GET['kladde_id'] : 0;
-    if ($currentKladdeId) {
-         $qPrev = db_select("select id from kassekladde where kladde_id = '$currentKladdeId' order by id desc limit 1", __FILE__ . " linje " . __LINE__);
-         if ($rPrev = db_fetch_array($qPrev)) $prevId = $rPrev['id'];
-    }
 
-	if ($bilag) {
-		print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\"><span id=\"entryTitle\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Nyt bilag #" . htmlspecialchars($bilag) . "</span></font>";
+	if (!$sourceId || empty($kladdeInfo)) {
+		// New entry
+		$currentKladdeId = isset($_GET['kladde_id']) ? (int)$_GET['kladde_id'] : 0;
+		if ($currentKladdeId) {
+			$qPrev = db_select("select id from kassekladde where kladde_id = '$currentKladdeId' order by id desc limit 1", __FILE__ . " linje " . __LINE__);
+			if ($rPrev = db_fetch_array($qPrev)) $prevId = $rPrev['id'];
+		}
+		$displayBilag       = $bilag ?? '';
+		$displayDato        = htmlspecialchars($dato ?? '');
+		$displayFaktura     = htmlspecialchars($fakturanr ?? '');
+		$displayBeskrivelse = htmlspecialchars($beskrivelse ?? '');
+		$displayDebet       = htmlspecialchars($debet ?? '');
+		$displayKredit      = htmlspecialchars($kredit ?? '');
+		$displayAmount      = htmlspecialchars($sum ?? '');
+		$displayAfd         = '';
+		$displayProjekt     = '';
+		$displayValuta      = '';
+		$displayMomsfri     = 0;
+		$displayForfald     = '';
+		$pfx = 'newEntry';
+	}
+
+	// ---- Fetch all lines for this bilag + prev/next bilag navigation ----
+	$escKladde = (int)$currentKladdeId;
+	$intBilag  = (int)$displayBilag;
+	$bilagLines = [];
+	$prevBilagId = 0;
+	$nextBilagId = 0;
+	$docFolder_enc = urlencode($_GET['docFolder'] ?? '');
+	$poolFile_enc  = urlencode($_GET['poolFile'] ?? '');
+	$baseUrl = "documents.php?source=kassekladde&kladde_id=$escKladde";
+
+	if ($escKladde && $displayBilag !== '') {
+		$escBilag = db_escape_string($displayBilag);
+		$qAll = db_select(
+			"SELECT id, bilag, beskrivelse, transdate, debet, kredit, faktura, amount, afd, projekt, valuta, momsfri, forfaldsdate " .
+			"FROM kassekladde WHERE kladde_id = '$escKladde' AND bilag = '$escBilag' ORDER BY id ASC",
+			__FILE__ . " linje " . __LINE__
+		);
+		while ($bl = db_fetch_array($qAll)) {
+			$vn = (int)($bl['valuta'] ?? 0);
+			if ($vn) {
+				$vr = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art='VK' AND kodenr='$vn'", __FILE__ . " linje " . __LINE__));
+				$bl['valuta'] = $vr['box1'] ?? '';
+			} else {
+				$bl['valuta'] = '';
+			}
+			$bilagLines[] = $bl;
+		}
+
+		if ($displayBilag !== '') {
+			// Find prev bilag that has no document attached (skip bilag groups with documents)
+			$qPB = db_select(
+				"SELECT k.id, k.bilag FROM kassekladde k " .
+				"WHERE k.kladde_id = '$escKladde' AND CAST(k.bilag AS integer) < $intBilag " .
+				"AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.source = 'kassekladde' AND d.source_id::text = k.id::text) " .
+				"ORDER BY CAST(k.bilag AS integer) DESC, k.id ASC LIMIT 1",
+				__FILE__ . " linje " . __LINE__
+			);
+			if ($rPB = db_fetch_array($qPB)) $prevBilagId = $rPB['id'];
+
+			// Find next bilag that has no document attached
+			$qNB = db_select(
+				"SELECT k.id, k.bilag FROM kassekladde k " .
+				"WHERE k.kladde_id = '$escKladde' AND CAST(k.bilag AS integer) > $intBilag " .
+				"AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.source = 'kassekladde' AND d.source_id::text = k.id::text) " .
+				"ORDER BY CAST(k.bilag AS integer) ASC, k.id ASC LIMIT 1",
+				__FILE__ . " linje " . __LINE__
+			);
+			if ($rNB = db_fetch_array($qNB)) $nextBilagId = $rNB['id'];
+		}
+	}
+
+	// Reorder so the selected sourceId row comes first
+	if ($sourceId && count($bilagLines) > 1) {
+		usort($bilagLines, function($a, $b) use ($sourceId) {
+			if ((string)$a['id'] === (string)$sourceId) return -1;
+			if ((string)$b['id'] === (string)$sourceId) return 1;
+			return (int)$a['id'] - (int)$b['id'];
+		});
+	}
+
+	// Helper: render one full editable entry row
+	$renderBilagRow = function($rowId, $d, $showLabels = true) use ($inStyle, $btnStyle, $svgSave, $svgCopy, $escKladde, $intBilag, $readOnly, $sourceId) {
+		$pfx = "row_{$rowId}";
+		$momsfriChecked = !empty($d['momsfri']) ? ' checked' : '';
+		$rowIdJs = is_numeric($rowId) ? (int)$rowId : "'new'";
+		$lbl = function($text) use ($showLabels) { return $showLabels ? "<label>{$text}</label>" : ''; };
+		$ro = $readOnly ? ' readonly' : '';
+		$roBg = $readOnly ? ' background-color:#f0f0f0;' : '';
+		$dis = $readOnly ? ' disabled' : '';
+		$cbVal = is_numeric($rowId) ? (int)$rowId : '0';
+		$cbChecked = ((string)$cbVal === (string)$sourceId) ? ' checked' : '';
+		print "<div class='kassebilag-entry' id='bilagEntry_{$rowId}' style='margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e0e0e0;'>";
+		print "<div class='topbar-fields-row'>";
+		$linkIcon = '<svg style="width:14px;height:14px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
+		print "<div class='topbar-field' style='justify-content:center;align-items:center;'>" . $lbl($linkIcon) . "<input type='checkbox' class='targetLineCheckbox' value='{$cbVal}'{$cbChecked} style='width:16px;height:16px;cursor:pointer;accent-color:{$GLOBALS['buttonColor']};' title='Tilknyt bilag til denne linje'></div>";
+		print "<div class='topbar-field'>" . $lbl('Bilag #:') . "<input type='text' id='{$pfx}_Bilag' value=\"" . htmlspecialchars($d['bilag'] ?? '') . "\" style='width:55px;{$inStyle}{$roBg}'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Dato:') . "<input type='text' id='{$pfx}_Dato' value=\"" . htmlspecialchars($d['dato'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Faktura:') . "<input type='text' id='{$pfx}_Faktura' value=\"" . htmlspecialchars($d['faktura'] ?? '') . "\" style='width:70px;{$inStyle}{$roBg}' placeholder='Fakturanr'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Beskrivelse:') . "<input type='text' id='{$pfx}_Beskrivelse' value=\"" . htmlspecialchars($d['beskrivelse'] ?? '') . "\" style='width:180px;{$inStyle}{$roBg}' placeholder='Beskrivelse'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Debet:') . "<input type='text' id='{$pfx}_Debet' value=\"" . htmlspecialchars($d['debet'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='Konto'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Kredit:') . "<input type='text' id='{$pfx}_Kredit' value=\"" . htmlspecialchars($d['kredit'] ?? '') . "\" style='width:60px;{$inStyle}{$roBg}' placeholder='Konto'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Beløb:') . "<input type='text' id='{$pfx}_Amount' value=\"" . htmlspecialchars($d['amount'] ?? '') . "\" style='width:80px;{$inStyle}{$roBg}' placeholder='0,00'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Afd:') . "<input type='text' id='{$pfx}_Afd' value=\"" . htmlspecialchars($d['afd'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='Afd'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Proj:') . "<input type='text' id='{$pfx}_Projekt' value=\"" . htmlspecialchars($d['projekt'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='Proj'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('Valuta:') . "<input type='text' id='{$pfx}_Valuta' value=\"" . htmlspecialchars($d['valuta'] ?? '') . "\" style='width:50px;{$inStyle}{$roBg}' placeholder='DKK'{$ro}></div>";
+		print "<div class='topbar-field'>" . $lbl('u/m:') . "<input type='checkbox' id='{$pfx}_Momsfri'{$momsfriChecked}{$dis}></div>";
+		print "<div class='topbar-field'>" . $lbl('Forfald:') . "<input type='text' id='{$pfx}_Forfald' value=\"" . htmlspecialchars($d['forfald'] ?? '') . "\" style='width:85px;{$inStyle}{$roBg}' placeholder='dd-mm-yyyy'{$ro}></div>";
+		if (!$readOnly) {
+			print "<div class='topbar-field'><a href='#' onclick=\"duplicateRow($rowIdJs, $escKladde, $intBilag); return false;\" title='Dupliker linje' style=\"$btnStyle\">$svgCopy &nbsp;Dupliker</a></div>";
+		}
+		print "</div>"; // topbar-fields-row
+		print "</div>"; // kassebilag-entry
+	};
+
+	print "<div id='kassebilagTopBar'>";
+
+	// Title + bilag-group navigation
+	print "<div class='topbar-nav' style='margin-bottom:8px;'>";
+	print "<span class='topbar-title' id='entryTitle'>" . findtekst('1408|Kassebilag', $sprog_id) . ($displayBilag !== '' ? " &mdash; Bilag #{$displayBilag}" : "") . "</span>";
+	if ($prevBilagId) {
+		print "<a href=\"{$baseUrl}&sourceId={$prevBilagId}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgChevronLeft Forrige bilag</a>";
 	} else {
-		print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\"><span id=\"entryTitle\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Ny linje</span></font>";
+		print "<span style=\"$btnStyleDisabled\">$svgChevronLeft Forrige bilag</span>";
 	}
-    
-	print "</td></tr>";
-	print "<tr><td style=\"background-color: " . (isset($bgcolor5) ? $bgcolor5 : '#ffffff') . "; padding: 8px; border: 1px solid #ddd; border-top: none;\">";
-	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"4\" style=\"font-family: Arial, sans-serif; font-size: 12px;\">";
-	// Row 1: Dato + Fakturanr
-	print "<tr>";
-	print "<td width=\"12%\" style=\"font-weight: bold;\">Dato:</td>";
-	print "<td width=\"30%\"><input type=\"text\" name=\"dato\" id=\"newEntryDato\" value=\"" . htmlspecialchars($dato ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"dd-mm-yyyy\"></td>";
-	print "<td width=\"12%\" style=\"font-weight: bold; padding-left: 10px;\">Fakturanr:</td>";
-	print "<td><input type=\"text\" name=\"fakturanr\" id=\"newEntryFaktura\" value=\"" . htmlspecialchars($fakturanr ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Fakturanr\"></td>";
-	print "</tr>";
-	// Row 2: Beskrivelse
-	print "<tr>";
-	print "<td style=\"font-weight: bold;\">Beskrivelse:</td>";
-	print "<td colspan=\"3\"><input type=\"text\" name=\"beskrivelse\" id=\"newEntryBeskrivelse\" value=\"" . htmlspecialchars($beskrivelse ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Indtast beskrivelse...\"></td>";
-	print "</tr>";
-	// Row 3: Debet + Kredit
-	print "<tr>";
-	print "<td style=\"font-weight: bold;\">Debet:</td>";
-	print "<td><input type=\"text\" name=\"debet\" id=\"newEntryDebet\" value=\"" . htmlspecialchars($debet ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Debet konto\"></td>";
-	print "<td style=\"font-weight: bold; padding-left: 10px;\">Kredit:</td>";
-	print "<td><input type=\"text\" name=\"kredit\" id=\"newEntryKredit\" value=\"" . htmlspecialchars($kredit ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Kredit konto\"></td>";
-	print "</tr>";
-	// Row 4: Beløb
-	print "<tr>";
-	print "<td style=\"font-weight: bold;\">Beløb:</td>";
-	print "<td colspan=\"3\"><input type=\"text\" name=\"sum\" id=\"newEntryAmount\" value=\"" . htmlspecialchars($sum ?? '') . "\" style=\"width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px;\" placeholder=\"Beløb\"></td>";
-	print "</tr>";
-	print "</table>";
+	if ($nextBilagId) {
+		print "<a href=\"{$baseUrl}&sourceId={$nextBilagId}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">Næste bilag $svgChevronRight</a>";
+	} else {
+		print "<span style=\"$btnStyleDisabled\">Næste bilag $svgChevronRight</span>";
+	}
+	$bilagParam = $displayBilag !== '' ? '&bilag=' . urlencode($displayBilag) : '';
+	if (!$readOnly) {
+		print "<a href=\"{$baseUrl}&sourceId=0{$bilagParam}&docFolder={$docFolder_enc}&poolFile={$poolFile_enc}\" style=\"$btnStyle\">$svgPlus Ny linje</a>";
+		print "<a href='#' id='gemAlleBtn' onclick='saveAllRows(); return false;' style=\"$btnStyle\">$svgSave &nbsp;Gem alle</a>";
+	} else {
+		print "<span style='color:#999; font-size:12px; font-weight:bold; padding:3px 8px;'>Bogført</span>";
+	}
+	print "</div>"; // topbar-nav header
 
-    // Buttons in grey area
-    print "<div style=\"display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #ccc;\">";
-    
-    // Style for buttons
-    $btnStyle = "color: $buttonTxtColor; text-decoration: none; display: flex; align-items: center; background-color: $buttonColor; padding: 6px 12px; border-radius: 3px; font-weight: bold; font-size: 13px;";
-    $btnStyleDisabled = "color: #999; text-decoration: none; display: flex; align-items: center; background-color: #eee; padding: 6px 12px; border-radius: 3px; font-weight: bold; font-size: 13px; border: 1px solid #ccc;";
+	// Count total rows (existing + new if applicable)
+	$totalRows = count($bilagLines) + (!$sourceId ? 1 : 0);
+	$collapsible = $totalRows > 1;
 
-    // Previous Button
-    if ($prevId) {
-        $prevUrl = "?source=kassekladde&kladde_id=$currentKladdeId&sourceId=$prevId&docFolder=" . urlencode($_GET['docFolder'] ?? '') . "&poolFile=" . urlencode($_GET['poolFile'] ?? '');
-        print "<a href=\"documents.php$prevUrl\" title=\"Forrige linje\" style=\"$btnStyle\">$svgChevronLeft Forrige</a>";
-    } else {
-        print "<span style=\"$btnStyleDisabled\">$svgChevronLeft Forrige</span>";
-    }
+	print "<div id='bilagRowsContainer'>";
 
-    // Save Button
-    print "<a href=\"#\" onclick=\"saveEntry(); return false;\"  title=\"Gem ændringer\" style=\"$btnStyle\">$svgSave &nbsp;Gem</a>";
+	// Render all existing lines for this bilag
+	foreach ($bilagLines as $blIdx => $bl) {
+		$hiddenClass = ($collapsible && $blIdx >= 1) ? " style='display:none;'" : "";
+		print "<div class='bilag-row-wrapper'" . $hiddenClass . ">";
+		$renderBilagRow($bl['id'], [
+			'bilag'       => $bl['bilag'],
+			'dato'        => $bl['transdate'] ? dkdato($bl['transdate']) : '',
+			'faktura'     => $bl['faktura'] ?? '',
+			'beskrivelse' => $bl['beskrivelse'] ?? '',
+			'debet'       => $bl['debet'] ?? '',
+			'kredit'      => $bl['kredit'] ?? '',
+			'amount'      => $bl['amount'] ? dkdecimal($bl['amount']) : '',
+			'afd'         => $bl['afd'] ?? '',
+			'projekt'     => $bl['projekt'] ?? '',
+			'valuta'      => $bl['valuta'] ?? '',
+			'momsfri'     => $bl['momsfri'] ?? 0,
+			'forfald'     => $bl['forfaldsdate'] ? dkdato($bl['forfaldsdate']) : '',
+		], $blIdx === 0);
+		print "</div>";
+	}
 
-    // Next Button (Always disabled on new line)
-    print "<span style=\"$btnStyleDisabled\">Næste $svgChevronRight</span>";
-    
-    print "</div>";
+	// New entry row: always shown when sourceId=0
+	if (!$sourceId) {
+		$newIdx = count($bilagLines);
+		$hiddenClass = ($collapsible && $newIdx >= 1) ? " style='display:none;'" : "";
+		print "<div class='bilag-row-wrapper'" . $hiddenClass . ">";
+		$renderBilagRow('new', [
+			'bilag'       => $displayBilag,
+			'dato'        => $displayDato,
+			'faktura'     => $displayFaktura,
+			'beskrivelse' => $displayBeskrivelse,
+			'debet'       => $displayDebet,
+			'kredit'      => $displayKredit,
+			'amount'      => $displayAmount,
+			'afd'         => $displayAfd,
+			'projekt'     => $displayProjekt,
+			'valuta'      => $displayValuta,
+			'momsfri'     => $displayMomsfri,
+			'forfald'     => $displayForfald,
+		], empty($bilagLines));
+		print "</div>";
+	}
 
-	print "</td></tr>";
-	print "</tbody></table>";
+	print "</div>"; // bilagRowsContainer
+
+	// Toggle button when more than 1 row
+	if ($collapsible) {
+		$hiddenCount = $totalRows - 1;
+		$bilagKey = $escKladde . '_' . $intBilag;
+		print "<a href='#' id='bilagToggleBtn' onclick='toggleBilagRows(); return false;' style=\"$btnStyle; display:block; text-align:center; margin-top:2px; font-size:11px;\">";
+		print "<span id='bilagToggleText'>Vis {$hiddenCount} flere linjer &#9660;</span></a>";
+		print "<script>
+		var bilagStorageKey = 'bilagRowsExpanded_' + " . json_encode($bilagKey) . ";
+		function toggleBilagRows() {
+			var rows = document.querySelectorAll('#bilagRowsContainer .bilag-row-wrapper');
+			var btn = document.getElementById('bilagToggleText');
+			var expanded = rows[1] && rows[1].style.display !== 'none';
+			for (var i = 1; i < rows.length; i++) {
+				rows[i].style.display = expanded ? 'none' : '';
+			}
+			if (expanded) {
+				btn.innerHTML = 'Vis ' + (rows.length - 1) + ' flere linjer &#9660;';
+				localStorage.removeItem(bilagStorageKey);
+			} else {
+				btn.innerHTML = 'Skjul linjer &#9650;';
+				localStorage.setItem(bilagStorageKey, '1');
+			}
+		}
+		document.addEventListener('DOMContentLoaded', function() {
+			if (localStorage.getItem(bilagStorageKey) === '1') {
+				var rows = document.querySelectorAll('#bilagRowsContainer .bilag-row-wrapper');
+				var btn = document.getElementById('bilagToggleText');
+				for (var i = 1; i < rows.length; i++) {
+					rows[i].style.display = '';
+				}
+				if (btn) btn.innerHTML = 'Skjul linjer &#9650;';
+			}
+		});
+		</script>";
+	}
+
+	// Ensure at least one checkbox is checked and highlight selected rows
+	print "<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		var cbs = document.querySelectorAll('.targetLineCheckbox');
+		if (cbs.length > 0 && !document.querySelector('.targetLineCheckbox:checked')) {
+			cbs[0].checked = true;
+		}
+		function updateTargetHighlights() {
+			document.querySelectorAll('.kassebilag-entry').forEach(function(e) {
+				e.style.backgroundColor = '';
+			});
+			document.querySelectorAll('.targetLineCheckbox:checked').forEach(function(cb) {
+				var entry = cb.closest('.kassebilag-entry');
+				if (entry) entry.style.backgroundColor = '#e8f4fd';
+			});
+		}
+		cbs.forEach(function(cb) {
+			cb.addEventListener('change', updateTargetHighlights);
+		});
+		updateTargetHighlights();
+	});
+	</script>";
+
+	print "</div>"; // kassebilagTopBar
 }
+
+// ---- MAIN ROW (leftPanel + resizer + rightPanel) ----
+print "<div id='docPoolMain'>";
+print "<div id='leftPanel'>";
 
 	$langId = !empty($sprog_id) ? intval($sprog_id) : 1;
 
@@ -1361,6 +1499,14 @@ print "<input type='text' id='poolSearchBox' placeholder='Søg...' oninput='filt
 print "</div>";
 // View mode toggle and extract all button
 print "<div style='display: flex; gap: 8px;'>";
+// Auto-extract toggle
+print "<label title='Auto-udtræk fakturadata ved upload' style='display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #495057; white-space: nowrap; padding: 0 4px;'>";
+print "<span style='position: relative; display: inline-block; width: 36px; height: 20px;'>";
+print "<input type='checkbox' id='autoExtractToggle' " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "" : "checked") . " onchange='toggleAutoExtract(this)' style='opacity: 0; width: 0; height: 0;'>";
+print "<span id='autoExtractSlider' style='position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "#ccc" : "#17a2b8") . "; transition: .3s; border-radius: 20px;'></span>";
+print "<span id='autoExtractKnob' style='position: absolute; height: 16px; width: 16px; left: " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "2px" : "18px") . "; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%;'></span>";
+print "</span>";
+print "AI scan</label>";
 // Extract all button
 print "<button type='button' id='extractAllBtn' onclick='extractAllPoolFiles()' title='Opdater alle filer med fakturadata' style='padding: 8px 12px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 4px;'>$svgScan <span style='font-size: 12px;'>Opdater alle</span></button>";
 // Delete selected button
@@ -2607,10 +2753,22 @@ print <<<JS
 		url.searchParams.delete('poolFile');
 		url.searchParams.delete('poolFile[]');
 		url.searchParams.delete('poolFiles');
-		
+
+		// Get all checked target line checkboxes
+		const targetCheckboxes = document.querySelectorAll('.targetLineCheckbox:checked');
+		const targetSourceIds = Array.from(targetCheckboxes).map(cb => cb.value);
+		// Use the first checked line as primary sourceId (for single-line compat)
+		if (targetSourceIds.length > 0) {
+			url.searchParams.set('sourceId', targetSourceIds[0]);
+		}
+
 		// Create FormData with all required fields
 		const formData = new FormData();
 		formData.append('insertFile', '1');
+		// Pass all selected target line IDs so backend attaches only to these
+		if (targetSourceIds.length > 0) {
+			formData.append('targetSourceIds', targetSourceIds.join(','));
+		}
 		
 		// Add selected files - ONLY use poolFiles (comma-separated) as it's most reliable
 		formData.append('poolFiles', selectedFiles.join(','));
@@ -2761,8 +2919,8 @@ print <<<JS
 		// Show loading indicator
 		const loadingMsg = selectedFiles.length > 1 ? 'Indsætter ' + selectedFiles.length + ' filer...' : 'Indsætter fil...';
 		console.log(loadingMsg);
-		
-		// Send AJAX request (same approach as saveRowData)
+
+		// Send AJAX request - backend handles attaching to all targetSourceIds
 		fetch(url.toString(), {
 			method: 'POST',
 			body: formData,
@@ -2770,36 +2928,24 @@ print <<<JS
 		})
 		.then(response => {
 			console.log('Insert response status:', response.status, response.ok, response.redirected);
-			
-			// Check if response contains redirect or is successful
+
 			if (response.ok || (response.status >= 200 && response.status < 300)) {
-				// Get the response text to check for redirect URL
 				return response.text().then(text => {
-					// Check if response contains a redirect script
+					// Clear sessionStorage for inserted files
+					selectedFiles.forEach(file => {
+						sessionStorage.removeItem('docPool_checked_' + file);
+					});
+
 					const redirectMatch = text.match(/window\.location\.(replace|href)\s*=\s*['"]([^'"]+)['"]/);
 					if (redirectMatch) {
-						// Clear sessionStorage for inserted files
-						selectedFiles.forEach(file => {
-							sessionStorage.removeItem('docPool_checked_' + file);
-						});
-						// Extract redirect URL from response
-						const redirectUrl = redirectMatch[2];
-						window.location.replace(redirectUrl);
+						window.location.replace(redirectMatch[2]);
 					} else {
-						// Clear sessionStorage for inserted files
-						selectedFiles.forEach(file => {
-							sessionStorage.removeItem('docPool_checked_' + file);
-						});
-						// Fallback: construct redirect URL from current context
 						const kladdeId = url.searchParams.get('kladde_id') || '';
 						const fokus = url.searchParams.get('fokus') || '';
 						const source = url.searchParams.get('source') || '';
-						
 						if (source === 'kassekladde' && kladdeId) {
-							const redirectUrl = '../finans/kassekladde.php?kladde_id=' + kladdeId + '&fokus=' + fokus;
-							window.location.replace(redirectUrl);
+							window.location.replace('../finans/kassekladde.php?kladde_id=' + kladdeId + '&fokus=' + fokus);
 						} else {
-							// Reload current page without poolFile params
 							url.searchParams.delete('poolFile[]');
 							url.searchParams.delete('poolFiles');
 							url.searchParams.delete('insertFile');
@@ -2808,7 +2954,6 @@ print <<<JS
 					}
 				});
 			} else {
-				// Error handling
 				response.text().then(text => {
 					console.error('Insert failed. Response:', response.status, text);
 					alert('Fejl ved indsætning (Status: ' + response.status + '). Prøv igen.');
@@ -3002,6 +3147,25 @@ window.deletePoolFile = function(poolFile, subject, deleteUrl) {
 	if (confirm(confirmMsg)) {
 		window.location.href = deleteUrl;
 	}
+};
+
+// Auto-extract toggle function
+window.toggleAutoExtract = function(checkbox) {
+	var slider = document.getElementById('autoExtractSlider');
+	var knob = document.getElementById('autoExtractKnob');
+	if (checkbox.checked) {
+		slider.style.backgroundColor = '#17a2b8';
+		knob.style.left = '18px';
+	} else {
+		slider.style.backgroundColor = '#ccc';
+		knob.style.left = '2px';
+	}
+	document.cookie = 'autoExtract=' + (checkbox.checked ? '1' : '0') + '; path=/; max-age=31536000';
+};
+
+window.isAutoExtractEnabled = function() {
+	var toggle = document.getElementById('autoExtractToggle');
+	return toggle ? toggle.checked : true;
 };
 
 // Extract invoice data from pool file via API
@@ -3635,6 +3799,8 @@ JS;
 
 			var file = validFiles[index];
 			updateProgress();
+			console.time('[Upload] File ' + (index+1) + ' (' + file.name + ') total');
+			console.log('[Upload] File ' + (index+1) + '/' + totalFiles + ': ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)');
 
 			var formData = new FormData();
 			formData.append('uploadedFile', file);
@@ -3648,8 +3814,10 @@ JS;
 				}
 			}
 
+			console.time('[Upload] File ' + (index+1) + ' upload request');
 			fetch(uploadUrl, { method: 'POST', body: formData })
 			.then(function(response) {
+				console.timeEnd('[Upload] File ' + (index+1) + ' upload request');
 				return response.text().then(function(text) {
 					try {
 						return JSON.parse(text);
@@ -3666,7 +3834,9 @@ JS;
 				if (data && data.success) {
 					uploadedCount++;
 					lastUploadedFilename = data.filename;
+					if (isAutoExtractEnabled()) {
 					try {
+						console.time('[Upload] File ' + (index+1) + ' extract API');
 						const extractFormData = new FormData();
 						extractFormData.append('action', 'extract');
 						extractFormData.append('poolFile', data.filename);
@@ -3674,6 +3844,7 @@ JS;
 						extractFormData.append('docFolder', '$docFolder');
 						const extRes = await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: extractFormData });
 						const extData = await extRes.json();
+						console.timeEnd('[Upload] File ' + (index+1) + ' extract API');
 						if (extData.success && extData.data) {
 							const svData = new FormData();
 							svData.append('action', 'save');
@@ -3685,17 +3856,24 @@ JS;
 							if(d.vendor) svData.append('newSubject', d.vendor);
 							if(d.invoiceNumber) svData.append('newInvoiceNumber', d.invoiceNumber);
 							if(d.description) svData.append('newDescription', d.description);
+							console.time('[Upload] File ' + (index+1) + ' save extracted data');
 							await fetch('docsIncludes/extractInvoiceHandler.php', { method: 'POST', body: svData });
+							console.timeEnd('[Upload] File ' + (index+1) + ' save extracted data');
 						}
 					} catch(e) { console.error('Auto-extract failed', e); }
+					} else {
+						console.log('[Upload] File ' + (index+1) + ' auto-extract disabled, skipping');
+					}
 				} else {
 					failedCount++;
 					console.error('Upload failed for ' + file.name + ':', data && data.message ? data.message : 'Unknown error');
 				}
+				console.timeEnd('[Upload] File ' + (index+1) + ' (' + file.name + ') total');
 				uploadFile(index + 1);
 			})
 			.catch(function(error) {
 				failedCount++;
+				console.timeEnd('[Upload] File ' + (index+1) + ' (' + file.name + ') total');
 				console.error('Upload error for ' + file.name + ':', error);
 				uploadFile(index + 1);
 			});
@@ -4011,6 +4189,7 @@ JS;
 	print "</div>"; // documentViewer
 	print "</div>"; // rightPanel
 	
+	print "</div>"; // docPoolMain
 	// Close docPoolContainer div
 	print "</div>";
 
@@ -4096,7 +4275,7 @@ JS;
 					const resizer = document.getElementById('resizer');
 					const leftPanel = document.getElementById('leftPanel');
 					const rightPanel = document.getElementById('rightPanel');
-					const container = document.getElementById('docPoolContainer');
+					const container = document.getElementById('docPoolMain');
 					
 					if (!resizer || !leftPanel || !rightPanel || !container) {
 						return false;
@@ -4501,7 +4680,6 @@ HTML;
 		selectDebtor: "' . findtekst('586', $langId) . ' Debitor",
 		selectCreditor: "' . findtekst('586', $langId) . ' Kreditor",
 		selectDepartment: "' . findtekst('586', $langId) . ' ' . findtekst('274', $langId) . '",
-		selectEmployee: "' . findtekst('586', $langId) . ' Medarbejder",
 		selectCurrency: "' . findtekst('586', $langId) . ' ' . findtekst('776', $langId) . '",
 		selectAmount: "' . findtekst('586', $langId) . ' ' . findtekst('934', $langId) . '",
 		openItems: "Åbne Poster",
@@ -4545,120 +4723,161 @@ HTML;
 	</script>';
 	?>
 	<script>
-		    // Global Save function
-    function saveEntry() {
-        var currentSourceId = window.currentSourceId || <?php echo $sourceId ? (int)$sourceId : '0' ?>;
-        var kladdeId = <?php echo !empty($currentKladdeId) ? (int)$currentKladdeId : '0' ?>;
-        var bilag = <?php echo !empty($bilag) ? (int)$bilag : '0' ?>;
-        
-        var dato = document.getElementById("existingEntryDato") ? document.getElementById("existingEntryDato").value : "";
-        var beskrivelse = document.getElementById("existingEntryBeskrivelse") ? document.getElementById("existingEntryBeskrivelse").value : "";
-        var debet = document.getElementById("existingEntryDebet") ? document.getElementById("existingEntryDebet").value : "";
-        var kredit = document.getElementById("existingEntryKredit") ? document.getElementById("existingEntryKredit").value : "";
-        var fakturanr = document.getElementById("existingEntryFaktura") ? document.getElementById("existingEntryFaktura").value : "";
-        var amount = document.getElementById("existingEntryAmount") ? document.getElementById("existingEntryAmount").value : (document.getElementById("newEntryAmount") ? document.getElementById("newEntryAmount").value : "");
-        
-        if (!dato && document.getElementById("newEntryDato")) dato = document.getElementById("newEntryDato").value;
-        if (!beskrivelse && document.getElementById("newEntryBeskrivelse")) beskrivelse = document.getElementById("newEntryBeskrivelse").value;
-        if (!debet && document.getElementById("newEntryDebet")) debet = document.getElementById("newEntryDebet").value;
-        if (!kredit && document.getElementById("newEntryKredit")) kredit = document.getElementById("newEntryKredit").value;
-        if (!fakturanr && document.getElementById("newEntryFaktura")) fakturanr = document.getElementById("newEntryFaktura").value;
-        
-        var formData = new FormData();
-        formData.append("action", "updateOnly");
-        formData.append("ajax", "1");
-        formData.append("source", "kassekladde");
-        if (currentSourceId) formData.append("sourceId", currentSourceId);
-        if (kladdeId) formData.append("kladde_id", kladdeId);
-        if (bilag) formData.append("bilag", bilag);
-        
-        formData.append("dato", dato);
-        formData.append("beskrivelse", beskrivelse);
-        formData.append("debet", debet);
-        formData.append("kredit", kredit);
-        formData.append("fakturanr", fakturanr);
-        formData.append("sum", amount);
-        
-        var saveBtns = document.querySelectorAll('a[title="Gem ændringer"]');
-        saveBtns.forEach(btn => {
-            btn.innerHTML = 'Gemmer...';
-            btn.style.opacity = '0.7';
-            btn.style.pointerEvents = 'none';
-        });
+	    var _insertUrl = "<?php echo $insertDocPath ?>" +
+        "?docFolder=" + encodeURIComponent("<?php echo addslashes($_GET['docFolder'] ?? '') ?>") +
+        "&poolFile=" + encodeURIComponent("<?php echo addslashes($_GET['poolFile'] ?? '') ?>");
 
-        fetch("<?php echo $insertDocPath ?>" + "?docFolder=" + encodeURIComponent("<?php echo addslashes($_GET['docFolder'] ?? '') ?>") + "&poolFile=" + encodeURIComponent("<?php echo addslashes($_GET['poolFile'] ?? '') ?>"), {
-            method: "POST",
-            body: formData
-        })
-        .then(response => response.json())
+    function _collectRow(rowId) {
+        var pfx = 'row_' + rowId + '_';
+        function getVal(id) { var el = document.getElementById(id); return el ? el.value : ""; }
+        function getCheck(id) { var el = document.getElementById(id); return el ? (el.checked ? "1" : "0") : ""; }
+        return {
+            bilagsnr:    getVal(pfx + 'Bilag'),
+            dato:        getVal(pfx + 'Dato'),
+            beskrivelse: getVal(pfx + 'Beskrivelse'),
+            debet:       getVal(pfx + 'Debet'),
+            kredit:      getVal(pfx + 'Kredit'),
+            fakturanr:   getVal(pfx + 'Faktura'),
+            amount:      getVal(pfx + 'Amount'),
+            afd:         getVal(pfx + 'Afd'),
+            projekt:     getVal(pfx + 'Projekt'),
+            valuta:      getVal(pfx + 'Valuta'),
+            momsfri:     getCheck(pfx + 'Momsfri'),
+            forfald:     getVal(pfx + 'Forfald'),
+        };
+    }
+
+    function _buildFormData(rowId, kladdeId, bilag, includeSourceId) {
+        var v = _collectRow(rowId);
+        var fd = new FormData();
+        fd.append("action", "updateOnly");
+        fd.append("ajax", "1");
+        fd.append("source", "kassekladde");
+        if (includeSourceId && rowId !== 'new') fd.append("sourceId", rowId);
+        if (kladdeId) fd.append("kladde_id", kladdeId);
+        if (bilag)    fd.append("bilag", bilag);
+        fd.append("bilagsnr",    v.bilagsnr);
+        fd.append("dato",        v.dato);
+        fd.append("beskrivelse", v.beskrivelse);
+        fd.append("debet",       v.debet);
+        fd.append("kredit",      v.kredit);
+        fd.append("fakturanr",   v.fakturanr);
+        fd.append("sum",         v.amount);
+        fd.append("afd",         v.afd);
+        fd.append("projekt",     v.projekt);
+        fd.append("valuta",      v.valuta);
+        fd.append("momsfri",     v.momsfri);
+        fd.append("forfald",     v.forfald);
+        return fd;
+    }
+
+    function _saveRowFetch(rowId, kladdeId, bilag) {
+        return fetch(_insertUrl, { method: "POST", body: _buildFormData(rowId, kladdeId, bilag, true) })
+            .then(r => r.json());
+    }
+
+    function saveRow(rowId, kladdeId, bilag) {
+        var entryDiv = document.getElementById('bilagEntry_' + rowId);
+        var gemBtn = entryDiv ? entryDiv.querySelector('a[title="Gem linje"]') : null;
+        if (gemBtn) { gemBtn.innerHTML = 'Gemmer...'; gemBtn.style.opacity = '0.7'; gemBtn.style.pointerEvents = 'none'; }
+
+        _saveRowFetch(rowId, kladdeId, bilag)
         .then(data => {
             if (data.success) {
-                if (data.sourceId) {
-                    var wasNew = !window.currentSourceId || window.currentSourceId == 0;
-                    window.currentSourceId = data.sourceId;
-                    
-                    var newUrl = new URL(window.location.href);
-                    newUrl.searchParams.set("sourceId", data.sourceId);
-                    window.history.pushState({path: newUrl.href}, "", newUrl.href);
-                    
-                    if (wasNew) {
-                         var titleElem = document.getElementById("entryTitle");
-                         if (titleElem && data.bilag) {
-                             var txt = titleElem.innerText;
-                             if (txt.indexOf("-") > -1) {
-                                 titleElem.innerText = txt.split("-")[0] + "- Bilag #" + data.bilag;
-                             } else {
-                                titleElem.innerText += " - Bilag #" + data.bilag;
-                             }
-                         }
-                         var allLinks = document.querySelectorAll("div > a, div > span");
-                         allLinks.forEach(el => {
-                             if (el.innerText.indexOf("Næste") > -1) {
-                                 if (el.tagName === "SPAN") {
-                                     var newLink = document.createElement("a");
-                                     newLink.href = "documents.php?source=kassekladde&kladde_id=" + kladdeId + "&sourceId=0&docFolder=" + encodeURIComponent("<?php echo addslashes($_GET['docFolder'] ?? '') ?>") + "&poolFile=" + encodeURIComponent("<?php echo addslashes($_GET['poolFile'] ?? '') ?>");
-                                     newLink.title = "Ny linje";
-                                     newLink.className = el.className;
-                                     newLink.style.cssText = "color: <?php echo addslashes($buttonTxtColor) ?>; text-decoration: none; display: flex; align-items: center; background-color: <?php echo addslashes($buttonColor) ?>; padding: 6px 12px; border-radius: 3px; font-weight: bold; font-size: 13px;";
-                                     newLink.innerHTML = "Ny linje <?php echo addslashes($svgChevronRight) ?>";
-                                     el.parentNode.replaceChild(newLink, el);
-                                 }
-                             }
-                         });
+                if (rowId === 'new' && data.sourceId) {
+                    var url = new URL(window.location.href);
+                    url.searchParams.set("sourceId", data.sourceId);
+                    window.location.href = url.href;
+                } else {
+                    if (gemBtn) {
+                        gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gemt!";
+                        setTimeout(() => {
+                            gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem";
+                            gemBtn.style.opacity = "1";
+                            gemBtn.style.pointerEvents = "auto";
+                        }, 2000);
                     }
                 }
-
-                saveBtns.forEach(btn => {
-                    btn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gemt!";
-                    setTimeout(() => {
-                        btn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem";
-                        btn.style.opacity = "1";
-                        btn.style.pointerEvents = "auto";
-                    }, 2000);
-                });
             } else {
                 alert("Fejl ved gemning: " + (data.message || "Ukendt fejl"));
-                resetBtns();
+                if (gemBtn) { gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem"; gemBtn.style.opacity = "1"; gemBtn.style.pointerEvents = "auto"; }
             }
         })
-        .catch(error => {
-            console.error("Error:", error);
+        .catch(err => {
+            console.error(err);
             alert("Der opstod en fejl ved gemning.");
-            resetBtns();
+            if (gemBtn) { gemBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem"; gemBtn.style.opacity = "1"; gemBtn.style.pointerEvents = "auto"; }
         });
+    }
+    window.saveRow = saveRow;
+    window.saveEntry = function() { console.warn("saveEntry: use saveRow instead"); };
 
-        function resetBtns() {
-            saveBtns.forEach(btn => {
-                btn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem";
-                btn.style.opacity = "1";
-                btn.style.pointerEvents = "auto";
+    function saveAllRows() {
+        var kladdeId = <?php echo !empty($currentKladdeId) ? (int)$currentKladdeId : '0' ?>;
+        var bilag    = <?php echo isset($intBilag) ? (int)$intBilag : '0' ?>;
+        var entries  = document.querySelectorAll('.kassebilag-entry');
+        var gemAlleBtn = document.getElementById('gemAlleBtn');
+        if (gemAlleBtn) { gemAlleBtn.innerHTML = 'Gemmer...'; gemAlleBtn.style.opacity = '0.7'; gemAlleBtn.style.pointerEvents = 'none'; }
+
+        var rowIds = Array.from(entries).map(el => el.id.replace('bilagEntry_', ''));
+        Promise.all(rowIds.map(id => _saveRowFetch(id, kladdeId, bilag)))
+        .then(results => {
+            var failed = results.find(d => !d.success);
+            var newSourceId = null;
+            results.forEach((d, i) => {
+                if (rowIds[i] === 'new' && d.success && d.sourceId) newSourceId = d.sourceId;
             });
-        }
-    };
-    
-    // Ensure saveEntry is on window object
-    window.saveEntry = saveEntry;
-    console.log("saveEntry defined");
+            if (failed) {
+                alert("Fejl ved gemning: " + (failed.message || "Ukendt fejl"));
+                if (gemAlleBtn) { gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem alle"; gemAlleBtn.style.opacity = "1"; gemAlleBtn.style.pointerEvents = "auto"; }
+            } else if (newSourceId) {
+                var url = new URL(window.location.href);
+                url.searchParams.set("sourceId", newSourceId);
+                window.location.href = url.href;
+            } else {
+                if (gemAlleBtn) {
+                    gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Alle gemt!";
+                    setTimeout(() => {
+                        gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem alle";
+                        gemAlleBtn.style.opacity = "1";
+                        gemAlleBtn.style.pointerEvents = "auto";
+                    }, 2000);
+                }
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Der opstod en fejl ved gemning.");
+            if (gemAlleBtn) { gemAlleBtn.innerHTML = "<?php echo addslashes($svgSave) ?>" + "&nbsp;Gem alle"; gemAlleBtn.style.opacity = "1"; gemAlleBtn.style.pointerEvents = "auto"; }
+        });
+    }
+    window.saveAllRows = saveAllRows;
+
+    function duplicateRow(rowId, kladdeId, bilag) {
+        var entryDiv = document.getElementById('bilagEntry_' + rowId);
+        var dupBtn = entryDiv ? entryDiv.querySelector('a[title="Dupliker linje"]') : null;
+        if (dupBtn) { dupBtn.innerHTML = 'Duplikerer...'; dupBtn.style.opacity = '0.7'; dupBtn.style.pointerEvents = 'none'; }
+
+        fetch(_insertUrl, { method: "POST", body: _buildFormData(rowId, kladdeId, bilag, false) })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.sourceId) {
+                var url = new URL(window.location.href);
+                url.searchParams.set("sourceId", data.sourceId);
+                window.location.href = url.href;
+            } else {
+                alert("Fejl ved duplikering: " + (data.message || "Ukendt fejl"));
+                if (dupBtn) { dupBtn.innerHTML = "<?php echo addslashes($svgCopy) ?>" + "&nbsp;Dupliker"; dupBtn.style.opacity = "1"; dupBtn.style.pointerEvents = "auto"; }
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Der opstod en fejl ved duplikering.");
+            if (dupBtn) { dupBtn.innerHTML = "<?php echo addslashes($svgCopy) ?>" + "&nbsp;Dupliker"; dupBtn.style.opacity = "1"; dupBtn.style.pointerEvents = "auto"; }
+        });
+    }
+    window.duplicateRow = duplicateRow;
+    window.duplicateEntry = duplicateRow;
 	</script>
 	<?php
 	file_put_contents($perfLog, sprintf("Time: %.4f - End of PHP execution\n", microtime(true) - $startTime), FILE_APPEND);
