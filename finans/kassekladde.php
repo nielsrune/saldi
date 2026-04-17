@@ -5,6 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-10 ---
+// test: verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
