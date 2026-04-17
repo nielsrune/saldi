@@ -123,6 +123,40 @@ function get_saved_vat_code($row, $field) {
     return trim((string)$row[$field]);
 }
 
+function lookup_account_vat_code($account_no, $account_type, $regnaar, $vat_codes) {
+    $account_no = trim((string)$account_no);
+    $account_type = trim(strtoupper((string)$account_type));
+
+    if ($account_no === '' || ($account_type !== '' && $account_type !== 'F')) {
+        return '';
+    }
+
+    $qtxt = "select moms from kontoplan where kontonr='" . db_escape_string($account_no) . "' and regnskabsaar='" . db_escape_string($regnaar) . "'";
+    $query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+    if ($row = db_fetch_array($query)) {
+        return normalize_vat_code(if_isset($row['moms'], ''), $vat_codes);
+    }
+
+    return '';
+}
+
+function resolve_lookup_vat_code($explicit_vat, $current_account, $current_type, $existing_account, $existing_type, $existing_vat, $regnaar, $vat_codes) {
+    if ($explicit_vat !== null) {
+        return normalize_vat_code($explicit_vat, $vat_codes);
+    }
+
+    $current_account = trim((string)$current_account);
+    $current_type = trim(strtoupper((string)$current_type));
+    $existing_account = trim((string)$existing_account);
+    $existing_type = trim(strtoupper((string)$existing_type));
+
+    if ($existing_account !== '' && $current_account === $existing_account && $current_type === $existing_type) {
+        return normalize_vat_code($existing_vat, $vat_codes);
+    }
+
+    return lookup_account_vat_code($current_account, $current_type, $regnaar, $vat_codes);
+}
+
 function ensure_cash_vat_columns() {
     $required_columns = array(
         'tmpkassekl' => array('debetvat', 'kreditvat'),
@@ -147,7 +181,7 @@ ensure_cash_vat_columns();
 // Helper function to render VAT select dropdown
 function render_vat_select($name, $selected_value, $vat_codes, $charset) {
     $selected_value = normalize_vat_code($selected_value, $vat_codes);
-    $html = "<select class='inputbox' name='" . htmlspecialchars($name, ENT_QUOTES, $charset) . "' style='width:55px;font-size:11px;background-color:#f5f5f5;' tabindex='-1' onchange='javascript:docChange = true;'>";
+    $html = "<select class='inputbox' name='" . htmlspecialchars($name, ENT_QUOTES, $charset) . "' style='width:55px;background-color:#f5f5f5;' tabindex='-1' onchange='javascript:docChange = true;'>";
     $html .= "<option value=''></option>";
     foreach ($vat_codes as $code => $desc) {
         $sel = ($selected_value === $code) ? " selected='selected'" : '';
@@ -362,6 +396,8 @@ if ($_GET) {
 	$debet[$x]       =       if_isset($_GET,'','debet');
 	$k_type[$x]      =       if_isset($_GET,'','k_type');
 	$kredit[$x]      =       if_isset($_GET,'','kredit');
+	$debetvat_param  = array_key_exists('dvat', $_GET) ? $_GET['dvat'] : null;
+	$kreditvat_param = array_key_exists('kvat', $_GET) ? $_GET['kvat'] : null;
 	$faktura[$x]     =       if_isset($_GET,'','faktura');
 	$belob[$x]       =       if_isset($_GET['belob']);
 	$momsfri[$x]     =       if_isset($_GET,'','momsfri');
@@ -377,6 +413,39 @@ if ($_GET) {
 	$kredit[$x]      =  trim(if_isset($kredit[$x], ''));
 	$faktura[$x]     =  trim(if_isset($faktura[$x], ''));
 	$belob[$x]       =  trim(if_isset($belob[$x], ''));
+	$existing_row = null;
+
+	if ($kladde_id && ($id[$x] || $lobenr[$x] || $x)) {
+		if ($id[$x]) {
+			$qtxt = "select d_type,debet,debetvat,k_type,kredit,kreditvat from tmpkassekl where id='" . db_escape_string($id[$x]) . "' and kladde_id='$kladde_id'";
+		} elseif ($lobenr[$x]) {
+			$qtxt = "select d_type,debet,debetvat,k_type,kredit,kreditvat from tmpkassekl where lobenr='" . db_escape_string($lobenr[$x]) . "' and kladde_id='$kladde_id'";
+		} else {
+			$qtxt = "select d_type,debet,debetvat,k_type,kredit,kreditvat from tmpkassekl where lobenr='$x' and kladde_id='$kladde_id'";
+		}
+		$existing_row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	}
+
+	$debetvat[$x] = resolve_lookup_vat_code(
+		$debetvat_param,
+		$debet[$x],
+		$d_type[$x],
+		if_isset($existing_row['debet'], ''),
+		if_isset($existing_row['d_type'], ''),
+		if_isset($existing_row['debetvat'], ''),
+		$regnaar,
+		$vat_codes
+	);
+	$kreditvat[$x] = resolve_lookup_vat_code(
+		$kreditvat_param,
+		$kredit[$x],
+		$k_type[$x],
+		if_isset($existing_row['kredit'], ''),
+		if_isset($existing_row['k_type'], ''),
+		if_isset($existing_row['kreditvat'], ''),
+		$regnaar,
+		$vat_codes
+	);
 
 	if (!isset($forfaldsdato[$x]))
 		$forfaldsdato[$x] = '';
@@ -2365,15 +2434,15 @@ if ($kladde_id) {
 		$d_type[$x] = trim($row['d_type']);
 		$debet[$x] = $row['debet'];
 		$debettext[$x] = NULL;
-		$stored_debetvat = normalize_vat_code(get_saved_vat_code($row, 'debetvat'), $vat_codes);
-		$debetvat[$x] = ($stored_debetvat === null) ? '' : $stored_debetvat;
+		$stored_debetvat = get_saved_vat_code($row, 'debetvat');
+		$debetvat[$x] = normalize_vat_code($stored_debetvat, $vat_codes);
 		$k_type[$x] = $row['k_type'];
 		if ($k_type[$x] == "K" || $d_type[$x] == "D")
 			$vis_forfald = 1;
 		$kredit[$x] = $row['kredit'];
 		$kredittext[$x] = NULL;
-		$stored_kreditvat = normalize_vat_code(get_saved_vat_code($row, 'kreditvat'), $vat_codes);
-		$kreditvat[$x] = ($stored_kreditvat === null) ? '' : $stored_kreditvat;
+		$stored_kreditvat = get_saved_vat_code($row, 'kreditvat');
+		$kreditvat[$x] = normalize_vat_code($stored_kreditvat, $vat_codes);
 		$faktura[$x] = htmlentities($row['faktura'], ENT_QUOTES, $charset);
 		$saldo[$x] = $row['saldo'];
 		if ($fejl) {

@@ -339,7 +339,25 @@
             return;
         }
 
-        vatField.value = value || '';
+        const normalizedValue = (value || '').toString().trim();
+
+        if (vatField.tagName === 'SELECT') {
+            // Try exact match first, then case-insensitive
+            let matched = '';
+            for (var i = 0; i < vatField.options.length; i++) {
+                if (vatField.options[i].value === normalizedValue) {
+                    matched = vatField.options[i].value;
+                    break;
+                }
+                if (vatField.options[i].value.toUpperCase() === normalizedValue.toUpperCase()) {
+                    matched = vatField.options[i].value;
+                }
+            }
+            vatField.value = matched;
+            return;
+        }
+
+        vatField.value = normalizedValue;
     }
 
     function updateVatFieldForRow(rowNum, side, options) {
