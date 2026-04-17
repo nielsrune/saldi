@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // --- finans/kassekladde.php --- ver 5.0.0 --- 2026-04-10 ---
-// test: verifying fork target points to DANOSOFT/saldi
+// verifying fork target points to DANOSOFT/saldi
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,7 @@
 // 20260306 Sawaneh Fixed bug: email usernames (e.g. hau@skjern-net.dk) broke posted cash journal grid. Changed $brugernavn to $bruger_id in datagrid ID.
 // 20260326 PHR Added: if ($regnstart && $regnslut)
 // 20260410 PHR set $vis_bilag = 1 
+// 
 
 ob_start(); //Starter output buffering
 
