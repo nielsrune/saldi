@@ -45,6 +45,8 @@
 // 20260306 Sawaneh Fixed bug: email usernames (e.g. hau@skjern-net.dk) broke posted cash journal grid. Changed $brugernavn to $bruger_id in datagrid ID.
 // 20260326 PHR Added: if ($regnstart && $regnslut)
 // 20260410 PHR set $vis_bilag = 1 
+// 20260417 Sawaneh: Added a cloumn for vat with a dropwdown select
+
 // 
 
 ob_start(); //Starter output buffering

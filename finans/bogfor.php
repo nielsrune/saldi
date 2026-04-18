@@ -52,6 +52,8 @@
 // 20250612 PHR	- Extra diff controle
 // 20251210 PHR - Missing financialYear in vat account lookup for E & Y
 // 20260316 PHR Better error handling for missing debitor group
+// 20260417 Sawaneh: overwrite vat selection
+
 
 @session_start();
 $s_id=session_id();
