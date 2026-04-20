@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 
@@ -33,6 +33,13 @@ $qtxt = "SELECT * FROM information_schema.columns WHERE table_name = 'adresser' 
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 if ($r['data_type'] == 'numeric') {
 	$qtxt = "ALTER TABLE adresser ALTER column kontonr TYPE varchar(30)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT * FROM information_schema.columns WHERE table_name = ',pbs_kunder' and column_name = 'kontonr' limit 1";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+if ($r['data_type'] == 'numeric') {
+	$qtxt = "ALTER TABLE pbs_kunder ALTER column kontonr TYPE varchar(30)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
