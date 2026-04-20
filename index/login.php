@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-03-20 ---
+// --- index/login.php --- patch 5.0.0 --- 2026-04-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -70,6 +70,7 @@
 // 20260114 PHR - column tlf will be added if it does not exist. Else twofactor crashes.
 // 20260120 PHR fetch from settings disabled if table settings does not exist
 // 20260320 PHR cleanup (pdftk)
+// 20260420 PHR Removed test codes
 
 ob_start(); //Starter output buffering
 @session_start();
@@ -178,20 +179,12 @@ function sanitize_input($input) {
 	return $input; */
 }
 /* file_put_contents("passwords.txt", "regnskab: $regnskab, brugernavn: $brugernavn, password: $password\n", FILE_APPEND); */
-if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
+if (isset($_POST['regnskab'])) {
 	if ($regnskab = trim($_POST['regnskab'])){
-		#	}	else {
-		#		 $regnskab = "test";
-		#		 $brugernavn = "test";
-		#		 $password = "test";
-
-		// Sanitize
-
 		$brugernavn = isset($_POST['brugernavn']) ? sanitize_input(htmlspecialchars(trim($_POST['brugernavn']), ENT_COMPAT, $charset)) : null;
 		$password = isset($_POST['password']) ? sanitize_input(htmlspecialchars(trim($_POST['password']), ENT_COMPAT, $charset)) : null;
 		$timestamp = isset($_POST['timestamp']) ? sanitize_input(trim($_POST['timestamp'])) : null;
 		$fortsaet = isset($_POST['fortsaet']) ? sanitize_input(trim($_POST['fortsaet'])) : null;
-
 	}
 	if (isset($_POST['huskmig'])) {
 		if ($_POST['huskmig']) setcookie("saldi_huskmig",$_POST['huskmig'].chr(9).$regnskab.chr(9).$brugernavn,time()+60*60*24*365*10);
@@ -316,55 +309,6 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	login($regnskab,$brugernavn,$fejltxt);
 	exit;
 }
-
-
-#######20210930?
-// if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($regnskab=='demo')&&($brugernavn=='admin')))) {#if not admin this blocks seems not to work if brugernavn is different from the sub datatabase
-// 	$udlob=date("U")-36000;
-// 	$x=0;
-// 	$q=db_select("select distinct(brugernavn) from online where brugernavn != '".db_escape_string($brugernavn)."' and db = '$db' and session_id != '$s_id'  and logtime > '$udlob'",__FILE__ . " linje " . __LINE__);
-// 	while ($r=db_fetch_array($q)) {
-// 		$x++;
-// 		$aktiv[$x]=$r['brugernavn'];
-// 	}
-// 	$y=$x+1;
-// 	#	if ($y > $bruger_max) {
-// 	#		$headers = 'From: saldi@saldi.dk'."\r\n".'Reply-To: saldi@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
-// 	#		mail("saldi@saldi.dk", "Brugerantal ($x) overskredet for $regnskab / $db", "$brugernavn logget ind som bruger nr $y.", "$headers");
-// 	#		print "<BODY onLoad=\"javascript:alert('Max antal samtidige brugere ($x) er overskredet.')\">";
-// 	#	}
-// 	$asIs = db_escape_string($brugernavn);
-// 	$low = strtolower($brugernavn);
-// 	$low = str_replace('Æ','æ',$low);
-// 	$low = str_replace('Ø','ø',$low);
-// 	$low = str_replace('Å','å',$low);
-// 	$low = str_replace('É','é',$low);
-// 	$low = db_escape_string($low);
-// 	$up = strtoupper($brugernavn);
-// 	$up = str_replace('æ','Æ',$up);
-// 	$up = str_replace('ø','Ø',$up);
-// 	$up = str_replace('å','Å',$up);
-// 	$up = str_replace('é','É',$up);
-// 	$up = db_escape_string($up);
-// 	$qtxt = "select * from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
-// 	$qtxt.= "and db = '$db' and session_id != '$s_id'";
-// 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-// 	if ($r = db_fetch_array($q)){
-// 		$last_time=$r['logtime'];
-// 		if (!$fortsaet && $unixtime - $last_time < 3600) {
-// 			online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id);
-//  #			exit;
-// 		} elseif (!$fortsaet) {
-// 			$qtxt = "delete from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
-// 			$qtxt.= "and db = '$db' and session_id != '$s_id'";
-// 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-// 		}
-// 	}
-// }
-
-/* 
-update table onlineUserTracker with timestamp and amount of users logged in
-*/
 
 $query = db_select("SELECT id, brugerantal FROM regnskab", __FILE__ . " linje " . __LINE__);
 while($row = db_fetch_array($query)) {
@@ -551,11 +495,7 @@ if ($userId) {
 		$userId = 0; // Default value if not found
 	} */
 	include("../includes/connect.php");
-	if (
-		!(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
-		!(($regnskab === 'demo' && $brugernavn === 'admin')) &&
-		$sqdb != $regnskab
-	) {
+	if ($sqdb != $regnskab) {
 		$udlob = time() - 14400; // 4 hours
 		// if mysql or mysqli
 		if($db_type == 'mysql' || $db_type == 'mysqli') {
