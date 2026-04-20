@@ -38,7 +38,7 @@ if ($r['data_type'] == 'numeric') {
 
 $qtxt = "SELECT * FROM information_schema.columns WHERE table_name = ',pbs_kunder' and column_name = 'kontonr' limit 1";
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-if ($r['data_type'] == 'numeric') {
+if ($r['data_type'] == 'numeric' || $r['data_type'] == 'integer') {
 	$qtxt = "ALTER TABLE pbs_kunder ALTER column kontonr TYPE varchar(30)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
