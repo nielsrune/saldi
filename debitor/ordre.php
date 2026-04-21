@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-04-15 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-04-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -74,7 +74,8 @@
 // 20260312 PHR Fixed random product added when copying og crediting an order
 // 20260326 Sawaneh Fixed Fix ourRefStockSwitch order setting to find alternate warehouse when stock is empty
 // 20260415 PHR Modtag (Receive) was set to 0 in creditnote
-
+// 20260420 PHR Removed GLS codes
+ 
 @session_start();
 $s_id = session_id();
 
@@ -3190,11 +3191,6 @@ function ordreside($id, $regnskab)
 			$fakturadato = dkdato(if_isset($row, NULL, 'fakturadate'));
 		}
 
-		/*
-			$gls_username = "2080050875";
-			$gls_pass = "50875";
-			$gls_id = "2080050875";
-*/
 		// Gls label setup
 		if (isset($_REQUEST['gls_go'])) {  // BZ
 			db_modify("update ordrer set gls_label = true where id = '$id'", __FILE__ . " linje " . __LINE__);

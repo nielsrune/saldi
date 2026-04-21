@@ -334,7 +334,7 @@ function vis_loen($id) {
 							<select name=\"loen_art\" $readonly class=\"loen_art printSelect2\" style=\"width:100%;\">";
 								if ($loen_art=='aconto') print "<option value=\"aconto\">".findtekst('2998|Aconto', $sprog_id)."</option>";
 								elseif ($loen_art=='akktimer') print "<option value=\"akktimer\">".findtekst('2809|Dyrtid', $sprog_id)."</option>";
-								elseif ($loen_art=='akk_afr') print "<option value=\"akk_afr\">".findtekst('2810|Akkord afregning', $sprog_id)."</option>";
+								elseif ($loen_art=='akk_afr') print "<option value=\"akk_afr\">".findtekst('2810|Akkordafregning', $sprog_id)."</option>";
 								elseif ($loen_art=='akkord') print "<option value=\"akkord\">".findtekst('2811|Akkord med dyrtid', $sprog_id)."</option>";
 								elseif ($loen_art=='timer') print "<option value=\"timer\">".findtekst('2802|Timeløn', $sprog_id)."</option>";
 								elseif ($loen_art=='plads') print "<option value=\"plads\">".findtekst('2804|Pladsarbejde', $sprog_id)."</option>";
@@ -346,7 +346,7 @@ function vis_loen($id) {
 								else print "<option value=\"0\"></option>";
 								if ($loen_art!='aconto' && substr($sag_rettigheder,6,1)) print "<option value=\"aconto\">".findtekst('2998|Aconto', $sprog_id)."</option>";
 								if ($loen_art!='akktimer') print "<option value=\"akktimer\">".findtekst('2809|Dyrtid', $sprog_id)."</option>";
-								if ($loen_art!='akk_afr') print "<option value=\"akk_afr\">".findtekst('2810|Akkord afregning', $sprog_id)."</option>";
+								if ($loen_art!='akk_afr') print "<option value=\"akk_afr\">".findtekst('2810|Akkordafregning', $sprog_id)."</option>";
 								if ($loen_art!='akkord') print "<option value=\"akkord\">".findtekst('2811|Akkord med dyrtid', $sprog_id)."</option>";
 								if ($loen_art!='timer') print "<option value=\"timer\">".findtekst('2802|Timeløn', $sprog_id)."</option>";
 								if ($loen_art!='plads') print "<option value=\"plads\">".findtekst('2804|Pladsarbejde', $sprog_id)."</option>";

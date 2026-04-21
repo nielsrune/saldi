@@ -97,6 +97,7 @@
 // 20251124 PHR	modified 'betalingslister' to choose between none / debitor / kreditor / both
 // 20260223 Sawaneh SD-335 added buttonname field to DFM pickup address UI
 // 20260304 Sawaneh SD-369 fixed- API URL instead of duplicate Danske Fragtmænd agreement number
+// 20260420 NTR SST-578 Fixed QRcode always fetching kasse 2, instead of it's intended kasse
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
 
@@ -1593,9 +1594,11 @@ function removeDfmPickup(idx) {
 					echo "Curl error: " . $error;
 				} else {
 					// Process response
-					echo "Response: " . $response . "\n";
-					echo "Status Code: " . $status_code . "\n";
-					$url = 'https://api.vipps.no/qr/v1/merchant-callback/kasse2';
+					if($status_code!=200){
+						echo "Response: " . $response . "\n";
+						echo "Status Code: " . $status_code . "\n";
+					}
+					$url = 'https://api.vipps.no/qr/v1/merchant-callback/kasse' . $i;
 
 					$headers = array(
 						'Content-Type: application/json',
