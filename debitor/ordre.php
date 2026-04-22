@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 5.0.0 --- 2026-04-20 ---
+// --- debitor/ordre.php --- patch 5.0.0 --- 2026-04-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -75,7 +75,8 @@
 // 20260326 Sawaneh Fixed Fix ourRefStockSwitch order setting to find alternate warehouse when stock is empty
 // 20260415 PHR Modtag (Receive) was set to 0 in creditnote
 // 20260420 PHR Removed GLS codes
- 
+// 20260422 PHR Defined $fast_db as array; 
+
 @session_start();
 $s_id = session_id();
 
@@ -5155,7 +5156,7 @@ $x = 0;
 		if (!$ordre_id) $ordre_id = 0;
 		$kostpris[0] = $kostsum = 0;
 		$blandet_moms = $lagervarer = $tGrossWeight = $tNetWeight = $tVolume = 0;
-
+		$fast_db=array();
 		$qtxt = "select * from ordrelinjer where ordre_id = '$ordre_id' order by posnr";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		$lines_found = 0;
@@ -5190,7 +5191,7 @@ $x = 0;
 				$m_rabat[$x]         = $row['m_rabat'] * -1;
 				$folgevare[$x]       = $row['folgevare'] * 1;
 				$varemomssats[$x]    = $row['momssats'] * 1;
-				$fast_db[$x]         = $row['fast_db'] * 1;
+				$fast_db[$x]         = (float)$row['fast_db'] * 1;
 				$saet[$x]            = $row['saet'];
 				$lev_varenr[$x]      = $row['lev_varenr'];
 				$kostpris[$x]        = $row['kostpris'];
