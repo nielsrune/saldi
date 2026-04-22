@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 5.0.0 --- 2026-03-25 ---
+// --- includes/formfunk.php --- patch 5.0.0 --- 2026-04-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -45,6 +45,7 @@
 // 20260312 PHR reminder was not attached if background didn't exist
 // 20260320 PHR cleanup (pdftk)
 // 20260325 PHR Added 'center' when using html
+// 20260426 PHR Outcommented change by PBLM as it has to be modified
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
@@ -1215,6 +1216,7 @@ if (!function_exists('formularprint')) {
 				$email[0] = $row['email'];
 				// Combine order email with type-specific kontakt_emails
 				$r_ke = db_fetch_array(db_select("SELECT konto_id FROM ordrer WHERE id = '$ordre_id[$o]'", __FILE__ . " linje " . __LINE__));
+/* 20260422 Made remark by phr as is must nog send to more mails when not asked to
 				if ($r_ke && $r_ke['konto_id']) {
 					$ke_type = '';
 					if ($formular == 0 || $formular == 1) $ke_type = 'tilbud';
@@ -1230,6 +1232,7 @@ if (!function_exists('formularprint')) {
 						}
 					}
 				}
+*/
 				if ($email[0] && $udskriv_alle_til == 'email')
 					$mail_fakt = 'on';
 				$pbs = $row['pbs'];
