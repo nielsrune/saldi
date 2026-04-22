@@ -328,6 +328,9 @@
         console.log('window.location.href:', window.location.href);
         console.log('window.location.search:', window.location.search);
 
+        // Set value of the imput to selected value - moved from individual statements in type if statement
+        input.value = value;
+
         if (type === 'item') {
             const urlParams = new URLSearchParams(window.location.search);
             let orderId = urlParams.get('id');
@@ -379,17 +382,26 @@
             if (vsc) redirectUrl += `&vsc=${encodeURIComponent(vsc)}`;
 
             console.log('FINAL redirectUrl:', redirectUrl);
-            window.location.href = redirectUrl;
+
+            var submitButton = document.getElementById("submit");
+            submitButton.url = redirectUrl;
+            
+            submitButton.click();
+            //window.location.href = redirectUrl;
         } else if (type === 'customer') {
             const urlParams = new URLSearchParams(window.location.search);
             const orderId = urlParams.get('id');
+
+            var submitButton = document.getElementById("submit");
             if (input.name === 'newAccountNo') {
-                window.location.href = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
+                submitButton.url = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
+                //window.location.href = `ordre.php?id=${orderId}&swap_account=swap&newAccountNo=${value}`;
             } else {
-                window.location.href = `ordre.php?konto_id=${id}`;
+                submitButton.url = `ordre.php?konto_id=${id}`;
+                //window.location.href = `ordre.php?konto_id=${id}`;
             }
+            submitButton.click();
         } else {
-            input.value = value;
             closeDropdown();
             const event = new Event('change', { bubbles: true });
             input.dispatchEvent(event);
