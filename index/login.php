@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-04-20 ---
+// --- index/login.php --- patch 5.0.0 --- 2026-04-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -70,7 +70,8 @@
 // 20260114 PHR - column tlf will be added if it does not exist. Else twofactor crashes.
 // 20260120 PHR fetch from settings disabled if table settings does not exist
 // 20260320 PHR cleanup (pdftk)
-// 20260420 PHR Removed test codes
+// 20260420 PHR Removed test codes// 20260422 PHR	Removed sanitize input from password at it sometimes changes the length of the password
+// 20260422 PHR Fixed cancel not working.
 
 ob_start(); //Starter output buffering
 @session_start();
@@ -182,7 +183,7 @@ function sanitize_input($input) {
 if (isset($_POST['regnskab'])) {
 	if ($regnskab = trim($_POST['regnskab'])){
 		$brugernavn = isset($_POST['brugernavn']) ? sanitize_input(htmlspecialchars(trim($_POST['brugernavn']), ENT_COMPAT, $charset)) : null;
-		$password = isset($_POST['password']) ? sanitize_input(htmlspecialchars(trim($_POST['password']), ENT_COMPAT, $charset)) : null;
+		$password = isset($_POST['password']) ? trim($_POST['password']) : null;
 		$timestamp = isset($_POST['timestamp']) ? sanitize_input(trim($_POST['timestamp'])) : null;
 		$fortsaet = isset($_POST['fortsaet']) ? sanitize_input(trim($_POST['fortsaet'])) : null;
 	}
