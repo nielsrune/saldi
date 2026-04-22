@@ -70,8 +70,7 @@
 // 20260114 PHR - column tlf will be added if it does not exist. Else twofactor crashes.
 // 20260120 PHR fetch from settings disabled if table settings does not exist
 // 20260320 PHR cleanup (pdftk)
-// 20260420 PHR Removed test codes
-// 20260422 PHR	Removed sanitize input from password at it sometimes changes the length of the password
+// 20260420 PHR Removed test codes// 20260422 PHR	Removed sanitize input from password at it sometimes changes the length of the password
 // 20260422 PHR Fixed cancel not working.
 
 ob_start(); //Starter output buffering
@@ -105,11 +104,6 @@ date_default_timezone_set($timezone);
 
 $ansat_id=$bruger_id=null;
 
-if (isset($_POST['cancel']) && $_POST['cancel']) {
-	print "<meta http-equiv='refresh' content='0; url=index.php'>";
-	exit;
-#	print "<script>window.location.href = 'index.php';</script>";
-}
 
 $query = db_select("SELECT brugernavn FROM brugere",__FILE__ . " linje " . __LINE__);
 $row = db_fetch_array($query);
@@ -188,7 +182,7 @@ function sanitize_input($input) {
 /* file_put_contents("passwords.txt", "regnskab: $regnskab, brugernavn: $brugernavn, password: $password\n", FILE_APPEND); */
 if (isset($_POST['regnskab'])) {
 	if ($regnskab = trim($_POST['regnskab'])){
-		$brugernavn = isset($_POST['brugernavn']) ? trim($_POST['brugernavn']) : null;
+		$brugernavn = isset($_POST['brugernavn']) ? sanitize_input(htmlspecialchars(trim($_POST['brugernavn']), ENT_COMPAT, $charset)) : null;
 		$password = isset($_POST['password']) ? trim($_POST['password']) : null;
 		$timestamp = isset($_POST['timestamp']) ? sanitize_input(trim($_POST['timestamp'])) : null;
 		$fortsaet = isset($_POST['fortsaet']) ? sanitize_input(trim($_POST['fortsaet'])) : null;
@@ -417,17 +411,15 @@ if (isset ($brug_timestamp)) {
 			exit;
 		}
 	}
-#$password='BM&18&200';
 	$pw1  = md5($password);
-#	$pw2  = saldikrypt($userId,$password);
 	$pw2  = saldikrypt(isset($r['id']) ? $r['id'] : null, $password);
 	$rkode = isset($r['kode']) ? $r['kode'] : null;
 	if ($rkode && ($rkode == $pw1 || $rkode == $pw2)) {
 		$userId      = isset($r['id']) ? $r['id'] : null;
 		$rettigheder = trim(if_isset($r['rettigheder'], ''));
-		$regnskabsaar = isset($r['regnskabsaar']) ? $r['regnskabsaar'] : 0;
+		$regnskabsaar = isset($r['regnskabsaar']) ? $r['regnskabsaar'] : '';
 		$ansat_id = isset($r['ansat_id']) ? ($db != $sqdb ? $r['ansat_id'] * 1 : NULL) : NULL; #20250325	
-	} else exit;
+	}
 	if ($ansat_id && $db!=$sqdb) {
 		$r=db_fetch_array(db_select("select * from ansatte where id='$ansat_id'",__FILE__ . " linje " . __LINE__));
 		$ansat_grp=$r['gruppe']*1;
@@ -655,7 +647,7 @@ if ($userId) {
 				
 				<div class="force-logout-buttons">
 					<input type="submit" name="force_logout" value="Log ud og fortsæt" class="btn btn-primary">
-					<input type="submit" value="Afbryd" onclick="window.location.href='index.php'" class="btn btn-secondary">
+					<input type="button" value="Afbryd" onclick="window.location.href='index.php'" class="btn btn-secondary">
 				</div>
 			</div>
 		</form>
@@ -964,7 +956,7 @@ function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
 		print "<tr><td><br></td></tr>";
 		print "<tr><td><br></td></tr>";
 		print "<tr><td><br></td></tr>";
-		print "<td align=\"center\"><INPUT TYPE=\"submit\" name=\"cancel\" VALUE=\"Afbryd\"></td>";
+		print "<td align=\"center\"><INPUT TYPE=\"submit\" name=\"afbryd\" VALUE=\"Afbryd\"></td>";
 		print "<td align=\"center\"><INPUT TYPE=\"submit\" name=\"fortsaet\" VALUE=\"Forts&aelig;t\"></td>";
 		print "</tr>";
 	} else {
