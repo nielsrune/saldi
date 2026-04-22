@@ -25,6 +25,12 @@
 // ----------------------------------------------------------------------
 // The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'variant_varer' and  column_name = 'variant_salgspris'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE variant_varer ADD variant_salgspris numeric(15,3)";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 $qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name = 'kontoplan' and  column_name = 'map_to'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE kontoplan ADD column map_to numeric(15)";
